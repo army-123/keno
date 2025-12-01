@@ -1,189 +1,591 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zii Game — Multiplayer</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            background: #0c0c0c;
-            font-family: Arial, sans-serif;
-            color: white;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        .btn {
-            background: #0a84ff;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 10px;
-            color: white;
-            font-size: 20px;
-            margin: 10px;
-            cursor: pointer;
-        }
-        .btn:hover { opacity: 0.8; }
-        .number-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 40px);
-            grid-gap: 8px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .num {
-            background: #222;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        .num.selected {
-            background: #0a84ff;
-        }
-        #countdownBox {
-            font-size: 32px;
-            margin-top: 20px;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zii Game — Multiplayer (Status Box)</title>
+
+  <!-- Supabase must load first -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <style>
+    :root { --accent:#4da6ff; --bg:#0d0d0d; --muted:#bdbdbd; }
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;padding:16px;background:var(--bg);color:#fff;text-align:center}
+    h1{color:var(--accent);margin:6px 0 12px;text-shadow:0 0 8px rgba(77,166,255,.12)}
+    .container{max-width:1000px;margin:0 auto;padding:10px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+    .entry-btn{background:#007bff;border:none;padding:12px 18px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
+    .entry-btn:hover{filter:brightness(1.06)}
+    .lobby{background:#111;border-radius:10px;padding:12px;margin-top:12px;border:1px solid rgba(255,255,255,.03)}
+    .status-box{background:#0f1720;border-radius:10px;padding:12px;width:320px;margin:10px auto;text-align:left;border:1px solid rgba(255,255,255,.04)}
+    .status-row{display:flex;justify-content:space-between;padding:6px 0;font-size:15px}
+    .status-label{color:var(--muted)}
+    #playersList{display:flex;flex-direction:column;gap:8px;margin-top:10px;align-items:center}
+    .player-item{background:#161616;padding:8px 12px;border-radius:8px;width:90%;display:flex;justify-content:space-between;align-items:center}
+    #grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;max-width:760px;margin:12px auto;padding:8px}
+    .num{background:#1f1f1f;border:2px solid #333;color:#eee;padding:10px;border-radius:8px;cursor:pointer;user-select:none;font-weight:700}
+    .num:hover{transform:translateY(-2px);transition:all .12s}
+    .num.selected{background:#ffd369;color:#000;border-color:#ffeaa0;box-shadow:0 0 8px #ffd369}
+    .num.hit{background:#00ff6a;color:#000;border-color:#aaffbf;box-shadow:0 0 8px #00ff6a}
+    .btn{padding:10px 16px;border-radius:10px;border:none;background:#ffcc00;color:#000;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#6b6b6b;color:#fff}
+    #results{background:#111;padding:12px;border-radius:8px;margin-top:12px}
+    .lb-item{background:#151515;padding:8px;border-radius:6px;margin:6px auto;max-width:700px;display:flex;justify-content:space-between}
+    .small{color:var(--muted);font-size:13px}
+    .submitted-badge{background:#0a8f4b;color:#fff;padding:4px 8px;border-radius:6px;font-weight:700}
+    .not-submitted{background:#555;color:#fff;padding:4px 8px;border-radius:6px}
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1>Zii Game — Multiplayer</h1>
 
-<h1>Zii Game — Multiplayer (Submit & 60s)</h1>
+    <!-- ENTRY -->
+    <div id="entryArea" class="lobby">
+      <p class="small">Choose entry amount to join the public lobby</p>
+      <div class="row">
+        <button class="entry-btn" data-amt="10">A — Play with 10</button>
+        <button class="entry-btn" data-amt="20">B — Play with 20</button>
+        <button class="entry-btn" data-amt="50">C — Play with 50</button>
+      </div>
+      <div style="margin-top:8px"><small class="small">Username generated automatically (saved to localStorage)</small></div>
+    </div>
 
-<div id="loginScreen">
-    <h2>Choose entry amount to join</h2>
-    <button class="btn" onclick="joinGame(10)">A — Play with 10</button>
-    <button class="btn" onclick="joinGame(20)">B — Play with 20</button>
-    <button class="btn" onclick="joinGame(50)">C — Play with 50</button>
-</div>
+    <!-- LOBBY + STATUS -->
+    <div id="lobbyBox" class="lobby" style="display:none">
+      <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center">
+        <div style="flex:1;min-width:300px">
+          <strong>Public Lobby</strong>
+          <div id="playersList"></div>
+          <div style="margin-top:10px">
+            <button id="leaveBtn" class="btn secondary">Leave Lobby</button>
+            <button id="submitBtn" class="btn">Submit 5 Numbers</button>
+          </div>
+        </div>
 
-<div id="gameScreen" style="display:none;">
-    <h2>Select 5 Numbers</h2>
-    <div class="number-grid" id="numGrid"></div>
+        <!-- Status box (B) -->
+        <div class="status-box" aria-live="polite">
+          <div style="font-weight:700;margin-bottom:6px">Lobby Status</div>
+          <div class="status-row"><div class="status-label">Players</div><div id="statusPlayers">0</div></div>
+          <div class="status-row"><div class="status-label">Countdown</div><div id="statusCountdown">—</div></div>
+          <div class="status-row"><div class="status-label">Status</div><div id="statusText">Waiting</div></div>
+          <div class="status-row"><div class="status-label">Host</div><div id="statusHost">—</div></div>
+          <div style="margin-top:8px" class="small">When at least 2 players have submitted, host starts a 60s countdown automatically.</div>
+        </div>
+      </div>
+    </div>
 
-    <button class="btn" onclick="submitNumbers()">Submit Numbers</button>
+    <!-- Grid & Game area -->
+    <div id="gridArea" style="display:none">
+      <p id="pickHelp">Pick up to 5 numbers</p>
+      <div id="grid"></div>
 
-    <div id="countdownBox"></div>
+      <div class="row" style="margin-top:12px">
+        <button id="playBtn" class="btn" disabled>Reveal (if round playing)</button>
+        <button id="showLbBtn" class="btn secondary">Show Leaderboard</button>
+      </div>
 
-    <h2>Drawn Numbers</h2>
-    <div id="results"></div>
+      <div id="results" style="display:none"></div>
+    </div>
 
-    <h2>Leaderboard</h2>
-    <div id="leaderboard"></div>
-</div>
+    <div style="margin-top:18px">
+      <h2>🏆 Leaderboard</h2>
+      <div id="leaderboard"></div>
+    </div>
+  </div>
 
 <script>
-/* -------------------------
-   SUPABASE INITIALIZATION
--------------------------- */
-
+/* =========================
+   CONFIG
+   ========================= */
 const SUPABASE_URL = "https://vdhuexwgplylprgpddoq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
-
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* -------------------------
-   GLOBALS
--------------------------- */
-let username = "User" + Math.floor(Math.random() * 9999);
-let pickedNumbers = [];
-let entryAmount = 0;
+/* =========================
+   STATE & ELEMENTS
+   ========================= */
+let myRowId = null;
+let myUsername = localStorage.getItem('username') || null;
+let myAmount = Number(localStorage.getItem('entryAmount') || 0);
+let isInLobby = false;
+let isHost = false;
+let localSelected = [];
 
-/* -------------------------
-   BUILD NUMBER GRID (1–50)
--------------------------- */
-function buildGrid() {
-    const grid = document.getElementById("numGrid");
-    grid.innerHTML = "";
-    for (let i = 1; i <= 50; i++) {
-        let div = document.createElement("div");
-        div.className = "num";
-        div.textContent = i;
-        div.onclick = () => toggleNum(i, div);
-        grid.appendChild(div);
-    }
+const entryArea = document.getElementById('entryArea');
+const lobbyBox = document.getElementById('lobbyBox');
+const playersListEl = document.getElementById('playersList');
+const gridArea = document.getElementById('gridArea');
+const gridEl = document.getElementById('grid');
+const playBtn = document.getElementById('playBtn');
+const leaveBtn = document.getElementById('leaveBtn');
+const submitBtn = document.getElementById('submitBtn');
+const resultsEl = document.getElementById('results');
+const leaderboardEl = document.getElementById('leaderboard');
+
+const statusPlayers = document.getElementById('statusPlayers');
+const statusCountdown = document.getElementById('statusCountdown');
+const statusText = document.getElementById('statusText');
+const statusHost = document.getElementById('statusHost');
+
+/* =========================
+   UTIL
+   ========================= */
+function genUsername(){ return 'user_' + Math.floor(Math.random()*900000 + 100000); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* =========================
+   BUILD GRID 1..100
+   ========================= */
+(function createGrid(){
+  for(let i=1;i<=100;i++){
+    const d = document.createElement('div');
+    d.className = 'num';
+    d.dataset.value = i;
+    d.textContent = i;
+    d.onclick = () => {
+      if (!isInLobby) { alert('Join the lobby first'); return; }
+      if (localSelected.includes(i)) {
+        localSelected = localSelected.filter(n=>n!==i);
+        d.classList.remove('selected');
+      } else {
+        if (localSelected.length >= 5) return;
+        localSelected.push(i);
+        d.classList.add('selected');
+      }
+      updatePickHelp();
+    };
+    gridEl.appendChild(d);
+  }
+})();
+function updatePickHelp(){
+  document.getElementById('pickHelp').textContent =
+    localSelected.length ? `Picked: ${localSelected.join(', ')}` : 'Pick up to 5 numbers';
 }
-buildGrid();
 
-function toggleNum(n, div) {
-    if (pickedNumbers.includes(n)) {
-        pickedNumbers = pickedNumbers.filter(x => x !== n);
-        div.classList.remove("selected");
-    } else {
-        if (pickedNumbers.length >= 5) return;
-        pickedNumbers.push(n);
-        div.classList.add("selected");
-    }
+/* =========================
+   DB helpers (players + game_state)
+   ========================= */
+async function insertPlayerRow(username, amount) {
+  // insert into players table (exists)
+  const { data, error } = await db.from('players').insert([{ username, amount }]).select().single();
+  if (error) throw error;
+  return data;
+}
+async function updatePlayerPicks(id, picks) {
+  if (!id) return null;
+  try {
+    const { data, error } = await db.from('players').update({ picks, ready:true }).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  } catch(e){ console.warn('updatePlayerPicks failed', e); return null; }
+}
+async function deletePlayerRow(id) {
+  if (!id) return;
+  try { await db.from('players').delete().eq('id', id); } catch(e){ console.warn('delete failed', e); }
+}
+async function fetchPlayers(){
+  try {
+    const { data, error } = await db.from('players').select('*').order('joined_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch(e){ console.warn('fetchPlayers err', e); return []; }
 }
 
-/* -------------------------
-   JOIN GAME
--------------------------- */
-async function joinGame(amount) {
-    entryAmount = amount;
+async function fetchGameState(){
+  const { data, error } = await db.from('game_state').select('*').eq('room','public').limit(1).single();
+  if (error) return null;
+  return data;
+}
+async function updateGameState(updates){
+  try {
+    const { data, error } = await db.from('game_state').update(updates).eq('room','public').select().single();
+    if (error) throw error;
+    return data;
+  } catch(e){ console.error('updateGameState', e); return null; }
+}
 
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("gameScreen").style.display = "block";
+/* =========================
+   JOIN LOBBY
+   ========================= */
+async function joinLobbyFlow(name, amount){
+  try {
+    const row = await insertPlayerRow(name, amount);
+    myRowId = row.id;
+    myUsername = row.username || name;
+    myAmount = row.amount || amount;
+    isInLobby = true;
+    localStorage.setItem('username', myUsername);
+    localStorage.setItem('entryAmount', String(myAmount));
+    entryArea.style.display = 'none';
+    lobbyBox.style.display = 'block';
+    gridArea.style.display = 'block';
+    await setupRealtime();
+    const players = await fetchPlayers();
+    updatePlayersUI(players);
+    evaluateHostRole();
+  } catch(e){
+    console.error('join lobby failed', e);
+    alert('Failed to join lobby (check DB).');
+  }
+}
 
-    await db.from("players").insert({
-        username,
-        entry: amount,
-        numbers: [],
-        ready: false
+/* =========================
+   LEAVE
+   ========================= */
+leaveBtn.onclick = async () => {
+  await deletePlayerRow(myRowId);
+  myRowId = null; myUsername = null; myAmount = 0; isInLobby = false; isHost = false;
+  entryArea.style.display = ''; lobbyBox.style.display='none'; gridArea.style.display='none';
+  localSelected = []; document.querySelectorAll('.num').forEach(n=>n.classList.remove('selected','hit'));
+  updatePickHelp(); resultsEl.style.display='none';
+};
+
+/* =========================
+   SUBMIT
+   ========================= */
+submitBtn.onclick = async () => {
+  if (localSelected.length < 5) { alert('Select 5 numbers before submitting'); return; }
+  // update picks + ready
+  await updatePlayerPicks(myRowId, localSelected);
+  alert('Submitted! Waiting for others...');
+  const players = await fetchPlayers();
+  updatePlayersUI(players);
+  evaluateHostRole();
+};
+
+/* =========================
+   PLAY BUTTON
+   ========================= */
+playBtn.onclick = async () => {
+  const s = await fetchGameState();
+  if (!s || !s.drawn_numbers) { alert('No drawn numbers yet. Wait for round.'); return; }
+  showRoundResult(s.drawn_numbers);
+};
+
+/* =========================
+   Leaderboard (client save) & show
+   ========================= */
+async function saveScoreToLeaderboard(username, score){
+  try { await db.from('leaderboard').insert([{ username, score }]); } catch(e){ console.warn('save lb failed', e); }
+}
+showLbBtn.onclick = async () => {
+  const { data } = await db.from('leaderboard').select('*').order('score', { ascending: false }).limit(20);
+  leaderboardEl.innerHTML = '';
+  if (!data || data.length === 0) { leaderboardEl.innerHTML = '<small>No scores yet</small>'; return; }
+  data.forEach((r,i)=>{
+    const div = document.createElement('div'); div.className='lb-item';
+    div.innerHTML = `<div>${i+1}. ${r.username}</div><div>${r.score}</div>`;
+    leaderboardEl.appendChild(div);
+  });
+};
+
+/* =========================
+   Host election & tick
+   ========================= */
+let hostInterval = null;
+async function evaluateHostRole(){
+  const players = await fetchPlayers();
+  updatePlayersUI(players);
+  if (!players || players.length === 0) {
+    isHost = false; stopHost(); return;
+  }
+  // earliest: joined_at or id fallback
+  players.sort((a,b) => {
+    if (a.joined_at && b.joined_at) return new Date(a.joined_at) - new Date(b.joined_at);
+    if (a.id && b.id) return a.id - b.id;
+    return 0;
+  });
+  const earliest = players[0];
+  isHost = (myRowId && earliest && earliest.id === myRowId);
+  if (isHost) startHost(); else stopHost();
+}
+function startHost(){ if (!hostInterval) hostInterval = setInterval(hostTick, 1000); }
+function stopHost(){ if (hostInterval){ clearInterval(hostInterval); hostInterval = null; } }
+
+/* Host tick orchestration */
+async function hostTick(){
+  try {
+    let state = await fetchGameState();
+    if (!state) {
+      // create initial state row if missing
+      try { await db.from('game_state').insert([{ room:'public', status:'waiting', countdown:60, drawn_numbers:null }]); } catch(e){}
+      return;
+    }
+
+    const players = await fetchPlayers();
+    const submittedPlayers = (players||[]).filter(p=>{
+      if (p.picks && Array.isArray(p.picks) && p.picks.length >=5) return true;
+      if (p.ready === true) return true;
+      if (p.numbers && Array.isArray(p.numbers) && p.numbers.length >=5) return true;
+      return false;
     });
+    const submittedCount = submittedPlayers.length;
 
-    listenGameState();
-}
+    // not enough -> reset to waiting
+    if (submittedCount < 2) {
+      if (state.status !== 'waiting') {
+        await updateGameState({ status:'waiting', countdown:60, drawn_numbers:null });
+      } else if (state.countdown !== 60) {
+        await updateGameState({ countdown:60 });
+      }
+      return;
+    }
 
-/* -------------------------
-   SUBMIT NUMBERS
--------------------------- */
-async function submitNumbers() {
-    if (pickedNumbers.length !== 5) {
-        alert("Pick exactly 5 numbers!");
+    // enough -> start countdown if waiting
+    if (state.status === 'waiting') {
+      await updateGameState({ status:'countdown', countdown:60 });
+      return;
+    }
+
+    // during countdown, decrement
+    if (state.status === 'countdown') {
+      const fresh = await fetchGameState();
+      const cur = Number(fresh.countdown || 0);
+
+      // if below threshold during countdown -> cancel
+      const latestPlayers = await fetchPlayers();
+      const nowSubmitted = (latestPlayers||[]).filter(p=>{
+        if (p.picks && Array.isArray(p.picks) && p.picks.length >=5) return true;
+        if (p.ready === true) return true;
+        if (p.numbers && Array.isArray(p.numbers) && p.numbers.length >=5) return true;
+        return false;
+      }).length;
+      if (nowSubmitted < 2) {
+        await updateGameState({ status:'waiting', countdown:60 });
         return;
+      }
+
+      if (cur > 0) {
+        await updateGameState({ countdown: cur - 1 });
+      } else {
+        // draw numbers
+        const drawn = drawUniqueNumbers(20,1,100);
+        await updateGameState({ status:'playing', drawn_numbers: drawn, round_started_at: new Date().toISOString(), countdown:0 });
+        // clear players table so next round is fresh
+        try { await db.from('players').delete().neq('id',''); } catch(e){ console.warn('clear players failed', e); }
+        // reset after delay
+        setTimeout(async ()=> {
+          await updateGameState({ status:'waiting', countdown:60, drawn_numbers:null, round_started_at:null });
+        }, 12000);
+      }
     }
-
-    await db.from("players")
-        .update({ numbers: pickedNumbers, ready: true })
-        .eq("username", username);
-
-    alert("Numbers submitted — waiting for others…");
+  } catch(e){ console.error('hostTick error', e); }
 }
 
-/* -------------------------
-   LISTEN FOR GAME STATE
--------------------------- */
-function listenGameState() {
-    db.channel("gamestate")
-        .on("postgres_changes", { event: "*", schema: "public", table: "game_state" }, payload => {
-            const state = payload.new;
-            handleState(state);
-        })
-        .subscribe();
+/* =========================
+   draw helper
+   ========================= */
+function drawUniqueNumbers(count,min,max){
+  const out=[];
+  while(out.length<count){
+    const n = Math.floor(Math.random()*(max-min+1)) + min;
+    if (!out.includes(n)) out.push(n);
+  }
+  return out;
 }
 
-/* -------------------------
-   HANDLE GAME STATE
--------------------------- */
-function handleState(state) {
-    if (!state) return;
+/* =========================
+   Realtime channels
+   ========================= */
+let playersChannel = null;
+let gameStateChannel = null;
 
-    if (state.countdown > 0) {
-        document.getElementById("countdownBox").innerHTML =
-            "Game starts in: " + state.countdown + "s";
-    }
+async function setupRealtime(){
+  if (playersChannel) try{ await playersChannel.unsubscribe(); } catch(e){}
+  if (gameStateChannel) try{ await gameStateChannel.unsubscribe(); } catch(e){}
+  playersChannel = db.channel('players_changes')
+    .on('postgres_changes', { event:'*', schema:'public', table:'players' }, async payload => {
+      const players = await fetchPlayers();
+      updatePlayersUI(players);
+      checkStartConditions(players);
+      evaluateHostRole();
+    })
+    .subscribe();
 
-    if (state.status === "drawing") {
-        document.getElementById("results").innerHTML =
-            "Drawn Numbers: " + JSON.stringify(state.drawn_numbers);
-    }
+  gameStateChannel = db.channel('game_state_changes')
+    .on('postgres_changes', { event:'*', schema:'public', table:'game_state' }, payload => {
+      const row = payload.record;
+      handleGameStateUpdate(row);
+    })
+    .subscribe(async status => {
+      // initial state
+      const s = await fetchGameState();
+      if (s) handleGameStateUpdate(s);
+      const players = await fetchPlayers();
+      updatePlayersUI(players);
+      evaluateHostRole();
+    });
 }
 
+/* =========================
+   handle game_state updates (UI)
+   ========================= */
+function handleGameStateUpdate(state){
+  if (!state) return;
+  statusText.textContent = state.status || 'waiting';
+  statusCountdown.textContent = (state.status === 'countdown') ? `${state.countdown}s` : (state.status === 'playing' ? 'In progress' : '—');
+  if (state.status === 'waiting') { playBtn.disabled = true; resultsEl.style.display='none'; }
+  if (state.status === 'countdown') { playBtn.disabled = true; resultsEl.style.display='none'; }
+  if (state.status === 'playing') {
+    playBtn.disabled = false;
+    resultsEl.style.display='block';
+    showRoundResult(state.drawn_numbers);
+  }
+}
+
+/* =========================
+   show round result
+   ========================= */
+function showRoundResult(drawn){
+  if (!drawn || !Array.isArray(drawn)) return;
+  const hits = localSelected.filter(n => drawn.includes(n));
+  const points = hits.length * (myAmount || 10);
+  document.querySelectorAll('.num').forEach(el => el.classList.remove('hit'));
+  hits.forEach(h=>{
+    const box = [...document.querySelectorAll('.num')].find(x => Number(x.dataset.value) === h);
+    if (box) box.classList.add('hit');
+  });
+  resultsEl.style.display='block';
+  resultsEl.innerHTML = `
+    🎯 Drawn: ${drawn.join(', ')}<br>
+    ✔ Hits: <b>${hits.length}</b><br>
+    ⭐ Points: <b>${points}</b>
+  `;
+  // store score
+  saveScoreToLeaderboard(myUsername || 'Guest', points);
+}
+
+/* =========================
+   update players UI & status box
+   ========================= */
+async function updatePlayersUI(players){
+  if (!players) players = await fetchPlayers();
+  playersListEl.innerHTML = '';
+  statusPlayers.textContent = (players||[]).length;
+  // host display
+  if ((players||[]).length>0) {
+    const earliest = players.slice().sort((a,b)=>{
+      if (a.joined_at && b.joined_at) return new Date(a.joined_at) - new Date(b.joined_at);
+      if (a.id && b.id) return a.id - b.id;
+      return 0;
+    })[0];
+    statusHost.textContent = earliest?.username || '—';
+  } else { statusHost.textContent = '—'; }
+
+  (players||[]).forEach(p=>{
+    const div = document.createElement('div'); div.className='player-item';
+    const submitted = (p.picks && Array.isArray(p.picks) && p.picks.length >=5) || (p.ready === true) || (p.numbers && Array.isArray(p.numbers) && p.numbers.length >=5);
+    div.innerHTML = `<div style="text-align:left"><strong>${p.username||'Guest'}</strong><div class="small">amt: ${p.amount || p.entry || '-'}</div></div>
+                     <div>${submitted ? '<span class="submitted-badge">SUBMITTED</span>' : '<span class="not-submitted">Not ready</span>'}</div>`;
+    playersListEl.appendChild(div);
+  });
+}
+
+/* =========================
+   check start conditions
+   ========================= */
+async function checkStartConditions(players){
+  if (!players) players = await fetchPlayers();
+  const submittedCount = (players||[]).filter(p=>{
+    if (p.picks && Array.isArray(p.picks) && p.picks.length >=5) return true;
+    if (p.ready === true) return true;
+    if (p.numbers && Array.isArray(p.numbers) && p.numbers.length >=5) return true;
+    return false;
+  }).length;
+  // let host handle exact countdown; just ensure election
+  await evaluateHostRole();
+}
+
+/* =========================
+   save score helper
+   ========================= */
+async function saveScoreToLeaderboard(username, score){
+  try { await db.from('leaderboard').insert([{ username, score }]); } catch(e){ console.warn('save leaderboard failed', e); }
+}
+
+/* =========================
+   Ensure game_state row exists on boot
+   ========================= */
+(async function ensureGameState(){
+  try {
+    const s = await fetchGameState();
+    if (!s) {
+      await db.from('game_state').insert([{ room:'public', status:'waiting', countdown:60, drawn_numbers:null }]);
+    }
+  } catch(e){}
+})();
+
+/* =========================
+   Restore local join if present
+   ========================= */
+(async function boot(){
+  const storedName = localStorage.getItem('username');
+  const storedAmt = Number(localStorage.getItem('entryAmount') || 0);
+  if (storedName && storedAmt) {
+    try {
+      const row = await insertPlayerRow(storedName, storedAmt);
+      myRowId = row.id; myUsername = row.username || storedName; myAmount = row.amount || storedAmt;
+      isInLobby = true;
+      entryArea.style.display = 'none'; lobbyBox.style.display='block'; gridArea.style.display='block';
+      await setupRealtime();
+      const players = await fetchPlayers(); updatePlayersUI(players); evaluateHostRole();
+    } catch(e){ console.warn('auto rejoin failed', e); }
+  }
+})();
+
+/* =========================
+   Realtime init + listeners for entry buttons
+   ========================= */
+document.querySelectorAll('.entry-btn').forEach(b=>{
+  b.addEventListener('click', async ()=>{
+    const amt = Number(b.dataset.amt || 10);
+    const uname = myUsername || genUsername();
+    try {
+      await joinLobbyFlow(uname, amt);
+    } catch(e){
+      alert('Failed to join lobby');
+    }
+  });
+});
+
+async function setupRealtime(){
+  // unsubscribe old if present
+  if (playersChannel) { try{ await playersChannel.unsubscribe(); } catch(e){} playersChannel = null; }
+  if (gameStateChannel) { try{ await gameStateChannel.unsubscribe(); } catch(e){} gameStateChannel = null; }
+
+  // players changes
+  playersChannel = db.channel('players_changes')
+    .on('postgres_changes', { event:'*', schema:'public', table:'players' }, async payload => {
+      const players = await fetchPlayers();
+      updatePlayersUI(players);
+      checkStartConditions(players);
+      evaluateHostRole();
+    })
+    .subscribe();
+
+  // game_state changes
+  gameStateChannel = db.channel('game_state_changes')
+    .on('postgres_changes', { event:'*', schema:'public', table:'game_state' }, payload => {
+      handleGameStateUpdate(payload.record);
+    })
+    .subscribe(async status => {
+      const s = await fetchGameState();
+      if (s) handleGameStateUpdate(s);
+      const players = await fetchPlayers();
+      updatePlayersUI(players);
+      evaluateHostRole();
+    });
+}
+
+/* =========================
+   beforeunload cleanup
+   ========================= */
+window.addEventListener('beforeunload', async ()=>{
+  if (myRowId) {
+    try { await db.from('players').delete().eq('id', myRowId); } catch(e){}
+  }
+});
 </script>
-
 </body>
 </html>
