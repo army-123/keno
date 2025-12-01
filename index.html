@@ -5,8 +5,6 @@
   <title>Zii Game 🎯</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <link rel="stylesheet" href="styles.css" />
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <style>
@@ -86,6 +84,13 @@
 
 <body>
 
+<script>
+// redirect if not coming from login
+if (!localStorage.getItem("username") || !localStorage.getItem("entryAmount")) {
+    window.location.href = "login.html";
+}
+</script>
+
   <h1>Zii Game 🎯</h1>
   <p>Select up to 5 numbers and press Play</p>
 
@@ -140,9 +145,7 @@ for (let i = 1; i <= 100; i++) {
   grid.appendChild(div);
 }
 
-// ------------------------------
-// Confetti effect
-// ------------------------------
+// Confetti
 function confettiBurst() {
   for (let i = 0; i < 20; i++) {
     const e = document.createElement("div");
@@ -159,9 +162,7 @@ function confettiBurst() {
   }
 }
 
-// ------------------------------
-// Play Button
-// ------------------------------
+// Play button
 document.getElementById("playBtn").onclick = async () => {
   if (selected.length === 0) {
     alert("Pick at least 1 number!");
@@ -175,11 +176,11 @@ document.getElementById("playBtn").onclick = async () => {
     if (!drawn.includes(n)) drawn.push(n);
   }
 
-  // Find hits
+  // Hits
   const hits = selected.filter(n => drawn.includes(n));
   const points = hits.length * entryAmount;
 
-  // Highlight hits
+  // Visual hits
   document.querySelectorAll(".num").forEach(x => x.classList.remove("hit"));
   hits.forEach(n => {
     const box = [...document.querySelectorAll(".num")]
@@ -189,7 +190,6 @@ document.getElementById("playBtn").onclick = async () => {
 
   if (hits.length > 0) confettiBurst();
 
-  // Show results
   document.getElementById("results").innerHTML = `
     🎯 Drawn: ${drawn.join(", ")}<br>
     ✔ Hits: <b>${hits.length}</b><br>
@@ -202,9 +202,7 @@ document.getElementById("playBtn").onclick = async () => {
   ]);
 };
 
-// ------------------------------
-// Leaderboard button
-// ------------------------------
+// Leaderboard
 document.getElementById("leaderboardBtn").onclick = async () => {
   const list = document.getElementById("leaderboardList");
 
