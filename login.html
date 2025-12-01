@@ -1,65 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zii Game – Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zii Game — Login</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
-body {
-  background: #000;
-  color: #fff;
-  text-align: center;
-  font-family: Arial;
-  padding-top: 40px;
-}
+    body {
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+        height: 100vh;
+        background: linear-gradient(135deg, #ff00cc, #3333ff);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        overflow: hidden;
+    }
 
-h1 {
-  color: #ffdd55;
-  text-shadow: 0 0 10px #ffdd55;
-  margin-bottom: 25px;
-}
+    .login-box {
+        width: 90%;
+        max-width: 420px;
+        padding: 40px;
+        background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 0 25px rgba(255,255,255,0.2);
+        animation: pop 0.7s ease;
+    }
 
-.option {
-  width: 220px;
-  margin: 20px auto;
-  padding: 18px;
-  background: #007bff;
-  font-size: 22px;
-  font-weight: bold;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: 0.2s;
-}
+    @keyframes pop {
+        from { transform: scale(0.85); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
 
-.option:hover {
-  background: #3399ff;
-}
+    h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        text-shadow: 0 0 10px rgba(255,255,255,0.4);
+    }
+
+    input {
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        margin-top: 15px;
+        font-size: 1rem;
+        outline: none;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 15px;
+        margin-top: 25px;
+        background: linear-gradient(90deg, #ffcc00, #ff6600);
+        color: black;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        box-shadow: 0 0 12px rgba(255, 153, 0, 0.8);
+        transition: 0.3s;
+    }
+
+    .btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 18px rgba(255, 153, 0, 1);
+    }
+
+    .footer {
+        margin-top: 25px;
+        font-size: 0.9rem;
+        opacity: 0.7;
+    }
 </style>
 </head>
 
 <body>
 
-<h1>Choose Entry Amount</h1>
+<div class="login-box">
+    <h1>Zii Game</h1>
 
-<div class="option" onclick="choose(10)">A — Play with 10</div>
-<div class="option" onclick="choose(20)">B — Play with 20</div>
-<div class="option" onclick="choose(50)">C — Play with 50</div>
+    <input type="text" id="username" placeholder="Enter username">
+
+    <button class="btn" onclick="startGame()">Start Game</button>
+
+    <div class="footer">Multiplayer Keno — Fast • Fun • Real-time</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-function choose(amount) {
-  // generate username
-  const username = "player_" + Math.floor(Math.random() * 999999);
+    const supabaseUrl = "YOUR_URL_HERE";
+    const supabaseKey = "YOUR_KEY_HERE";
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-  // save to browser
-  localStorage.setItem("username", username);
-  localStorage.setItem("entryAmount", amount);
+    // Auto-generate username if empty
+    function randomName() {
+        return "user_" + Math.floor(Math.random() * 900000 + 100000);
+    }
 
-  // go to game
-  window.location.href = "index.html";
-}
+    async function startGame() {
+        let username = document.getElementById("username").value.trim();
+
+        if (username === "") {
+            username = randomName();
+        }
+
+        // Save username locally
+        localStorage.setItem("keno_username", username);
+
+        // You can also add supabase auth here later if needed
+
+        // Redirect to main game
+        window.location.href = "index.html";
+    }
 </script>
 
 </body>
