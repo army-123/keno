@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ziii Game – Pick Numbers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+    margin:0;
+    background:#0d0d0d;
+    color:white;
+    text-align:center;
+    font-family:Arial;
+}
+h1 {
+    margin-top:25px;
+    color:#ffcc00;
+    text-shadow:0 0 10px #ffcc00;
+}
+#numberGrid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+    padding: 20px;
+    max-width: 600px;
+    margin: auto;
+}
+.num {
+    padding: 12px;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.num.selected {
+    background: #ffd369;
+    color: black;
+    box-shadow: 0 0 8px #ffdd88;
+}
+button {
+    padding: 15px 25px;
+    font-size: 22px;
+    margin-top: 20px;
+    border-radius: 10px;
+    background: #ffcc00;
+    border:none;
+    font-weight:bold;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Pick 5 Numbers</h1>
+<div id="numberGrid"></div>
+
+<button onclick="submitNumbers()">Submit</button>
+
+<script>
+const db = supabase.createClient(
+    "https://vdhuexwgplylprgpddoq.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
+
+let username = localStorage.getItem("ziii_user");
+let entry = Number(localStorage.getItem("ziii_amount"));
+
+let selected = [];
+
+const grid = document.getElementById("numberGrid");
+for (let i = 1; i <= 100; i++) {
+    const div = document.createElement("div");
+    div.className = "num";
+    div.innerText = i;
+
+    div.onclick = () => {
+        if (selected.includes(i)) {
+            selected = selected.filter(n => n !== i);
+            div.classList.remove("selected");
+        } else if (selected.length < 5) {
+            selected.push(i);
+            div.classList.add("selected");
+        }
+    };
+
+    grid.appendChild(div);
+}
+
+async function submitNumbers() {
+    if (selected.length !== 5) return alert("Select 5 numbers!");
+
+    await db.from("game_entries").insert([{
+        username,
+        entry,
+        numbers: selected,
+        status: "waiting"
+    }]);
+
+    window.location.href = "index.html"; // go to game
+}
+</script>
+
+</body>
+</html>
