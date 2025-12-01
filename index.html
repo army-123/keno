@@ -1,589 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Zii Game — Final Multiplayer</title>
-
-  <!-- Supabase client must load before app code -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-  <style>
-    :root { --accent:#ffd369; --bg:#0d0d0d; --muted:#bdbdbd; --panel:#0f1112; }
-    body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#fff;text-align:center;padding:16px}
-    .container{max-width:1100px;margin:0 auto}
-    h1{color:var(--accent);text-shadow:0 0 12px rgba(255,211,105,.12);margin:8px 0 14px}
-    .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-    .entry-btn{background:#0b84ff;border:none;padding:12px 18px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
-    .lobby{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;margin:12px 0;border:1px solid rgba(255,255,255,0.03)}
-    .status-box{background:var(--panel);padding:10px;border-radius:10px;width:320px;margin:auto;text-align:left;border:1px solid rgba(255,255,255,0.03)}
-    .status-row{display:flex;justify-content:space-between;padding:6px 0;font-size:15px}
-    .status-label{color:var(--muted)}
-    #playersList{display:flex;flex-direction:column;gap:8px;margin-top:10px;align-items:center}
-    .player-item{background:#111;padding:8px 12px;border-radius:8px;width:90%;display:flex;justify-content:space-between;align-items:center}
-    #grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;max-width:760px;margin:12px auto;padding:8px}
-    .num{background:#1b1b1b;border:2px solid #2a2a2a;color:#eee;padding:10px;border-radius:8px;cursor:pointer;user-select:none;font-weight:700}
-    .num:hover{transform:translateY(-2px);transition:all .12s}
-    .num.selected{background:#ffd369;color:#000;border-color:#ffeaa0;box-shadow:0 0 8px #ffd369}
-    .num.hit{background:#00ff6a;color:#000;border-color:#aaffbf;box-shadow:0 0 8px #00ff6a}
-    .btn{padding:10px 16px;border-radius:10px;border:none;background:#ffcc00;color:#000;font-weight:700;cursor:pointer}
-    .btn.secondary{background:#6b6b6b;color:#fff}
-    #results{background:#0d0f10;padding:12px;border-radius:8px;margin-top:12px}
-    .lb-item{background:#121212;padding:8px;border-radius:6px;margin:6px auto;max-width:700px;display:flex;justify-content:space-between}
-    .small{color:var(--muted);font-size:13px}
-    .submitted-badge{background:#0a8f4b;color:#fff;padding:4px 8px;border-radius:6px;font-weight:700}
-    .not-submitted{background:#555;color:#fff;padding:4px 8px;border-radius:6px}
-  </style>
+<meta charset="UTF-8">
+<title>Zii Game — Multiplayer (Final)</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+    body {
+        background: #000;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+    .lobby-box {
+        width: 80%;
+        margin: auto;
+        margin-top: 40px;
+        background: #111;
+        padding: 20px;
+        border-radius: 12px;
+    }
+    .player-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 20px;
+        border-bottom: 1px solid #222;
+    }
+    .grid {
+        width: 80%;
+        margin: auto;
+        margin-top: 30px;
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 10px;
+    }
+    .num {
+        padding: 15px;
+        background: #222;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .num.active {
+        background: #ffc000;
+        color: #000;
+        font-weight: bold;
+    }
+    button {
+        padding: 12px 20px;
+        background: #ffc000;
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-top: 20px;
+    }
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Zii Game — Multiplayer (Final)</h1>
 
-    <!-- Entry -->
-    <div id="entryArea" class="lobby">
-      <p class="small">Choose entry amount to join the public lobby</p>
-      <div class="row">
-        <button class="entry-btn" data-amt="10">A — Play with 10</button>
-        <button class="entry-btn" data-amt="20">B — Play with 20</button>
-        <button class="entry-btn" data-amt="50">C — Play with 50</button>
-      </div>
-      <div style="margin-top:8px"><small class="small">Username generated automatically (stored in localStorage)</small></div>
+<h1>Zii Game — Multiplayer (Final)</h1>
+
+<div class="lobby-box" id="lobbyBox">
+    <h2>Public Lobby</h2>
+    <div id="playersList"></div>
+
+    <button onclick="leaveLobby()">Leave Lobby</button>
+    <button onclick="submitNumbers()">Submit 5 Numbers</button>
+
+    <h3 style="margin-top:20px;">Lobby Status</h3>
+    <div id="statusBox">
+        Players: <span id="playerCount"></span><br>
+        Countdown: <span id="countdownDisplay">—</span><br>
+        Status: <span id="lobbyStatus">waiting</span><br>
+        Host: <span id="hostUser"></span><br>
     </div>
+</div>
 
-    <!-- Lobby + status -->
-    <div id="lobbyBox" class="lobby" style="display:none">
-      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;justify-content:center">
-        <div style="min-width:300px;flex:1">
-          <strong>Public Lobby</strong>
-          <div id="playersList"></div>
+<h3>Pick up to 5 numbers</h3>
+<div class="grid" id="numbersGrid"></div>
 
-          <div style="margin-top:10px">
-            <button id="leaveBtn" class="btn secondary">Leave Lobby</button>
-            <button id="submitBtn" class="btn">Submit 5 Numbers</button>
-          </div>
-        </div>
-
-        <div class="status-box" aria-live="polite">
-          <div style="font-weight:700;margin-bottom:6px">Lobby Status</div>
-          <div class="status-row"><div class="status-label">Players</div><div id="statusPlayers">0</div></div>
-          <div class="status-row"><div class="status-label">Countdown</div><div id="statusCountdown">—</div></div>
-          <div class="status-row"><div class="status-label">Status</div><div id="statusText">Waiting</div></div>
-          <div class="status-row"><div class="status-label">Host</div><div id="statusHost">—</div></div>
-          <div style="margin-top:8px" class="small">When at least the minimum players join and submit, a 60s countdown begins (timestamp-synced).</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Grid -->
-    <div id="gridArea" style="display:none">
-      <p id="pickHelp">Pick up to 5 numbers</p>
-      <div id="grid"></div>
-
-      <div class="row" style="margin-top:12px">
-        <button id="playBtn" class="btn" disabled>Reveal</button>
-        <button id="showLbBtn" class="btn secondary">Show Leaderboard</button>
-      </div>
-
-      <div id="results" style="display:none"></div>
-    </div>
-
-    <div style="margin-top:18px">
-      <h2>🏆 Leaderboard</h2>
-      <div id="leaderboard"></div>
-    </div>
-  </div>
+<div id="resultsBox" style="margin-top:40px; font-size:22px; color:#0f0;"></div>
 
 <script>
-/* =========================
-   CONFIG
-   ========================= */
+/* -----------------------------------------------------------
+   INIT SUPABASE
+------------------------------------------------------------- */
+
 const SUPABASE_URL = "https://vdhuexwgplylprgpddoq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* =========================
-   STATE & UI ELEMENTS
-   ========================= */
-let myRowId = null;
-let myUsername = localStorage.getItem('username') || null;
-let myAmount = Number(localStorage.getItem('entryAmount') || 0);
-let isInLobby = false;
-let isHost = false;
-let localSelected = [];
+let username = "player_" + Math.floor(Math.random() * 999999);
+let picked = [];
 
-const entryArea = document.getElementById('entryArea');
-const lobbyBox = document.getElementById('lobbyBox');
-const playersListEl = document.getElementById('playersList');
-const gridArea = document.getElementById('gridArea');
-const gridEl = document.getElementById('grid');
-const playBtn = document.getElementById('playBtn');
-const leaveBtn = document.getElementById('leaveBtn');
-const submitBtn = document.getElementById('submitBtn');
-const resultsEl = document.getElementById('results');
-const leaderboardEl = document.getElementById('leaderboard');
+/* -----------------------------------------------------------
+   UI SETUP
+------------------------------------------------------------- */
 
-const statusPlayers = document.getElementById('statusPlayers');
-const statusCountdown = document.getElementById('statusCountdown');
-const statusText = document.getElementById('statusText');
-const statusHost = document.getElementById('statusHost');
+function buildGrid() {
+    const grid = document.getElementById("numbersGrid");
+    for (let i = 1; i <= 60; i++) {
+        let b = document.createElement("div");
+        b.className = "num";
+        b.innerText = i;
+        b.onclick = () => selectNum(i, b);
+        grid.appendChild(b);
+    }
+}
+buildGrid();
 
-/* =========================
-   UTIL
-   ========================= */
-function genUsername(){ return 'user_' + Math.floor(Math.random()*900000 + 100000); }
-function nowIso(){ return new Date().toISOString(); }
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-/* =========================
-   BUILD GRID
-   ========================= */
-(function createGrid(){
-  for(let i=1;i<=100;i++){
-    const d = document.createElement('div');
-    d.className = 'num';
-    d.dataset.value = i;
-    d.textContent = i;
-    d.onclick = () => {
-      if (!isInLobby) { alert('Join the lobby first'); return; }
-      if (localSelected.includes(i)) {
-        localSelected = localSelected.filter(n=>n!==i);
-        d.classList.remove('selected');
-      } else {
-        if (localSelected.length >= 5) return;
-        localSelected.push(i);
-        d.classList.add('selected');
-      }
-      updatePickHelp();
-    };
-    gridEl.appendChild(d);
-  }
-})();
-function updatePickHelp(){
-  document.getElementById('pickHelp').textContent =
-    localSelected.length ? `Picked: ${localSelected.join(', ')}` : 'Pick up to 5 numbers';
+/* PICK NUMBER */
+function selectNum(n, el) {
+    if (picked.includes(n)) {
+        picked = picked.filter(x => x !== n);
+        el.classList.remove("active");
+    } else {
+        if (picked.length >= 5) return;
+        picked.push(n);
+        el.classList.add("active");
+    }
 }
 
-/* =========================
-   DB helpers (players + game_state)
-   ========================= */
-async function insertPlayer(username, amount) {
-  const { data, error } = await supabase.from('players').insert([{ username, amount }]).select().single();
-  if (error) throw error;
-  return data;
-}
-async function updatePlayerPicks(id, picks) {
-  const { data, error } = await supabase.from('players').update({ picks, ready: true }).eq('id', id).select().single();
-  if (error) throw error;
-  return data;
-}
-async function deletePlayer(id) {
-  try { await supabase.from('players').delete().eq('id', id); } catch(e){}
-}
-async function fetchPlayers() {
-  const { data, error } = await supabase.from('players').select('*').order('joined_at', { ascending: true });
-  if (error) { console.warn(error); return []; }
-  return data || [];
-}
+/* -----------------------------------------------------------
+   SUBMIT PICKS
+------------------------------------------------------------- */
 
-async function fetchGameState() {
-  const { data, error } = await supabase.from('game_state').select('*').eq('room','public').limit(1).single();
-  if (error) return null;
-  return data;
-}
-async function updateGameState(updates) {
-  try {
-    const { data, error } = await supabase.from('game_state').update(updates).eq('room','public').select().single();
-    if (error) throw error;
-    return data;
-  } catch(e) { console.error('updateGameState failed', e); return null; }
-}
-
-/* =========================
-   Join / Leave flow
-   ========================= */
-async function joinLobbyFlow(name, amount) {
-  const row = await insertPlayer(name, amount);
-  myRowId = row.id; myUsername = row.username || name; myAmount = row.amount || amount;
-  isInLobby = true;
-  localStorage.setItem('username', myUsername);
-  localStorage.setItem('entryAmount', String(myAmount));
-  entryArea.style.display = 'none';
-  lobbyBox.style.display = 'block';
-  gridArea.style.display = 'block';
-  await setupRealtime(); // merged version
-  const players = await fetchPlayers();
-  updatePlayersUI(players);
-  evaluateHostRole();
-}
-
-leaveBtn.onclick = async () => {
-  if (myRowId) await deletePlayer(myRowId);
-  myRowId = null; myUsername = null; myAmount = 0; isInLobby = false; isHost = false;
-  entryArea.style.display = ''; lobbyBox.style.display = 'none'; gridArea.style.display = 'none';
-  localSelected = []; document.querySelectorAll('.num').forEach(n=>n.classList.remove('selected','hit'));
-  updatePickHelp(); resultsEl.style.display='none';
-};
-
-/* =========================
-   Submit picks (player)
-   ========================= */
-submitBtn.onclick = async () => {
-  if (localSelected.length < 5) { alert('Select 5 numbers before submitting'); return; }
-  try {
-    await updatePlayerPicks(myRowId, localSelected);
-  } catch(e) {
-    console.error('submit error', e);
-    alert('Failed to submit picks; check console.');
-    return;
-  }
-  alert('Submitted your 5 numbers.');
-  // attempt to start round (host will also check)
-  await tryStartRound();
-};
-
-/* =========================
-   Play button: reveal results if playing
-   ========================= */
-playBtn.onclick = async () => {
-  const state = await fetchGameState();
-  if (!state || !state.drawn_numbers) { alert('No drawn numbers yet. Wait.'); return; }
-  showRoundResult(state.drawn_numbers);
-};
-
-/* =========================
-   Leaderboard helpers
-   ========================= */
-async function saveScore(username, score) {
-  try { await supabase.from('leaderboard').insert([{ username, score }]); } catch(e){ console.warn('saveScore failed', e); }
-}
-document.getElementById('showLbBtn').onclick = async () => {
-  const { data } = await supabase.from('leaderboard').select('*').order('score',{ascending:false}).limit(20);
-  leaderboardEl.innerHTML = '';
-  if (!data || data.length === 0) { leaderboardEl.innerHTML = '<small>No scores yet</small>'; return; }
-  data.forEach((r,i) => {
-    const div = document.createElement('div'); div.className='lb-item';
-    div.innerHTML = `<div>${i+1}. ${r.username}</div><div>${r.score}</div>`;
-    leaderboardEl.appendChild(div);
-  });
-};
-
-/* =========================
-   Host election & orchestration (timestamp style)
-   ========================= */
-let hostInterval = null;
-
-async function evaluateHostRole(){
-  const players = await fetchPlayers();
-  updatePlayersUI(players);
-  if (!players || players.length === 0) { isHost = false; stopHost(); return; }
-
-  // pick earliest by joined_at then id
-  players.sort((a,b) => {
-    if (a.joined_at && b.joined_at) return new Date(a.joined_at) - new Date(b.joined_at);
-    if (a.id && b.id) return a.id - b.id;
-    return 0;
-  });
-  const earliest = players[0];
-  isHost = (myRowId && earliest && earliest.id === myRowId);
-  if (isHost) startHost(); else stopHost();
-}
-
-function startHost(){ if (!hostInterval) hostInterval = setInterval(hostTick, 1000); }
-function stopHost(){ if (hostInterval){ clearInterval(hostInterval); hostInterval = null; } }
-
-/* Host tick: evaluates and updates game_state using timestamp method */
-async function hostTick(){
-  try {
-    const state = await fetchGameState();
-    // ensure state exists
-    if (!state) {
-      try { await supabase.from('game_state').insert([{ room:'public', status:'waiting', countdown:60, drawn_numbers:[], min_players:2 }]); } catch(e){}
-      return;
+async function submitNumbers() {
+    if (picked.length !== 5) {
+        alert("Pick exactly 5 numbers!");
+        return;
     }
 
-    // number of submitted players
-    const players = await fetchPlayers();
-    const minPlayers = state.min_players || 2;
-    const submittedPlayers = (players || []).filter(p => {
-      if (p.picks && Array.isArray(p.picks) && p.picks.length >= 5) return true;
-      if ('ready' in p && p.ready === true) return true;
-      if (p.numbers && Array.isArray(p.numbers) && p.numbers.length >=5) return true;
-      return false;
-    });
+    // set ready=true
+    await supabase
+        .from("players")
+        .update({ picks: picked, ready: true })
+        .eq("username", username);
 
-    // if below required, reset to waiting
-    if (submittedPlayers.length < minPlayers) {
-      if (state.status !== 'waiting' || (state.round_started_at !== null && state.round_started_at !== undefined)) {
-        await updateGameState({ status:'waiting', countdown:60, round_started_at:null, drawn_numbers: [] });
-      } else if (state.countdown !== 60) {
-        await updateGameState({ countdown:60 });
-      }
-      return;
-    }
-
-    // enough submissions: if countdown not started -> set round_started_at
-    if (!state.round_started_at && state.status !== 'playing') {
-      await updateGameState({ status:'countdown', countdown:60, round_started_at: nowIso() });
-      return;
-    }
-
-    // if countdown started -> evaluate remaining and when <=0 draw
-    if (state.round_started_at && state.status === 'countdown') {
-      const started = new Date(state.round_started_at);
-      const elapsed = Math.floor((Date.now() - started.getTime()) / 1000);
-      const remaining = Math.max(0, 60 - elapsed);
-
-      // update countdown field (optional)
-      if (state.countdown !== remaining) {
-        try { await updateGameState({ countdown: remaining }); } catch(e){}
-      }
-
-      if (remaining <= 0) {
-        // draw once (if not already drawn)
-        if (!state.drawn_numbers || (Array.isArray(state.drawn_numbers) && state.drawn_numbers.length === 0)) {
-          const drawn = drawUniqueNumbers(20,1,100);
-          await updateGameState({ status:'playing', drawn_numbers: drawn, round_started_at: state.round_started_at, countdown:0 });
-          // save scoreboard entries for each player (host can compute, but we'll let each client compute and submit their own score)
-          // clear players table so next round is fresh - keep small delay if needed
-          try { await supabase.from('players').delete().neq('id',''); } catch(e){ console.warn('clear players failed', e); }
-          // reset to waiting after short delay for next round
-          setTimeout(async ()=> {
-            try { await updateGameState({ status:'waiting', countdown:60, round_started_at:null, drawn_numbers: [] }); } catch(e){ console.warn('reset state failed', e); }
-          }, 12000);
-        }
-      }
-    }
-  } catch(err) {
-    console.error('hostTick error', err);
-  }
+    alert("Submitted!");
 }
 
-/* =========================
-   draw helper
-   ========================= */
-function drawUniqueNumbers(count,min,max){
-  const out=[];
-  while(out.length<count){
-    const n = Math.floor(Math.random()*(max-min+1)) + min;
-    if (!out.includes(n)) out.push(n);
-  }
-  return out;
+/* -----------------------------------------------------------
+   LEAVE LOBBY
+------------------------------------------------------------- */
+
+async function leaveLobby() {
+    await supabase.from("players").delete().eq("username", username);
+    location.reload();
 }
 
-/* =========================
-   Start round helper (called after submit to attempt start immediately)
-   ========================= */
-async function tryStartRound(){
-  // only host sets the timestamp, but any client can call to trigger server updates; hostTick will confirm
-  try {
-    const state = await fetchGameState();
-    if (!state) {
-      await supabase.from('game_state').insert([{ room:'public', status:'waiting', countdown:60, drawn_numbers:[], min_players:2 }]);
-      return;
-    }
-    const players = await fetchPlayers();
-    const submitted = (players||[]).filter(p => p.picks && Array.isArray(p.picks) && p.picks.length >=5).length;
-    const minPlayers = state.min_players || 2;
-    if (submitted >= minPlayers && !state.round_started_at) {
-      // set round_started_at (best done by host but this is fine; hostTick will also set if needed)
-      await updateGameState({ status:'countdown', countdown:60, round_started_at: nowIso() });
-    }
-  } catch(e){ console.warn('tryStartRound error', e); }
-}
+/* -----------------------------------------------------------
+   LISTEN FOR CHANGES
+------------------------------------------------------------- */
 
-/* =========================
-   Realtime merged setupRealtime() — only one instance
-   Subscribes to players and game_state changes and reacts
-   ========================= */
-let playersChannel = null;
-let gameStateChannel = null;
-
-async function setupRealtime() {
-  // unsubscribe previous channels if any
-  if (playersChannel) { try { await playersChannel.unsubscribe(); } catch(e){} playersChannel = null; }
-  if (gameStateChannel) { try { await gameStateChannel.unsubscribe(); } catch(e){} gameStateChannel = null; }
-
-  // subscribe to players table changes
-  playersChannel = supabase.channel('players_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, async payload => {
-      const players = await fetchPlayers();
-      updatePlayersUI(players);
-      // quick checks
-      checkStartConditions(players);
-      evaluateHostRole();
+supabase
+    .channel("game_state")
+    .on("postgres_changes", { event: "*", schema: "public", table: "game_state" }, payload => {
+        loadGameState();
     })
     .subscribe();
 
-  // subscribe to game_state changes
-  gameStateChannel = supabase.channel('game_state_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state' }, payload => {
-      const row = payload.record;
-      handleGameStateUpdate(row);
+supabase
+    .channel("players")
+    .on("postgres_changes", { event: "*", schema: "public", table: "players" }, payload => {
+        loadPlayers();
     })
-    .subscribe(async status => {
-      // initial fetch and UI update
-      const s = await fetchGameState();
-      if (s) handleGameStateUpdate(s);
-      const players = await fetchPlayers();
-      updatePlayersUI(players);
-      evaluateHostRole();
+    .subscribe();
+
+/* -----------------------------------------------------------
+   LOAD PLAYERS
+------------------------------------------------------------- */
+
+async function loadPlayers() {
+    let { data } = await supabase
+        .from("players")
+        .select("*");
+
+    const box = document.getElementById("playersList");
+    box.innerHTML = "";
+
+    data.forEach(p => {
+        box.innerHTML += `
+            <div class="player-row">
+                <div>${p.username}<br><small>amt: ${p.entry_amount || 10}</small></div>
+                <div>${p.ready ? "<span style='color:#0f0'>SUBMITTED</span>" : "<span style='color:#aaa'>Not ready</span>"}</div>
+            </div>
+        `;
     });
+
+    document.getElementById("playerCount").innerText = data.length;
 }
 
-/* =========================
-   Handle game_state updates (clients compute remaining from round_started_at)
-   ========================= */
-function handleGameStateUpdate(state) {
-  if (!state) return;
-  statusText.textContent = state.status || 'waiting';
-  statusPlayers.textContent = state.players ? (Array.isArray(state.players) ? state.players.length : '—') : statusPlayers.textContent;
-  statusHost.textContent = statusHost.textContent || '—';
+/* -----------------------------------------------------------
+   LOAD GAME STATE
+------------------------------------------------------------- */
 
-  // compute remaining from timestamp if available
-  if (state.status === 'countdown' && state.round_started_at) {
-    const started = new Date(state.round_started_at);
-    const elapsed = Math.floor((Date.now() - started.getTime()) / 1000);
-    const remaining = Math.max(0, 60 - elapsed);
-    statusCountdown.textContent = remaining + 's';
-    // also update playBtn disabled state
-    playBtn.disabled = true;
-    // if remaining hits 0 — soon playing; clients will see status update to 'playing'
-    if (remaining <= 0) {
-      // do nothing — host will update to playing/drawn
+async function loadGameState() {
+    let { data } = await supabase
+        .from("game_state")
+        .select("*");
+
+    if (!data || data.length === 0) return;
+
+    let g = data[0];
+
+    document.getElementById("lobbyStatus").innerText = g.status;
+    document.getElementById("countdownDisplay").innerText = g.countdown ?? "—";
+    document.getElementById("hostUser").innerText = g.host_user;
+    
+    /* SHOW RESULTS */
+    if (g.status === "finished") {
+        document.getElementById("resultsBox").innerHTML =
+            "<br>Drawn Numbers:<br><b>" + g.drawn_numbers.join(", ") + "</b><br><br>" +
+            "Winners:<br><b>" + JSON.stringify(g.round_winners) + "</b>";
+
+        return;
     }
-  } else if (state.status === 'playing') {
-    statusCountdown.textContent = 'In progress';
-    playBtn.disabled = false;
-    if (state.drawn_numbers && Array.isArray(state.drawn_numbers)) {
-      showRoundResult(state.drawn_numbers);
+}
+
+/* -----------------------------------------------------------
+   JOIN PLAYER AUTOMATICALLY
+------------------------------------------------------------- */
+
+async function joinPlayer() {
+    await supabase
+        .from("players")
+        .insert([{ username, picks: [], ready: false }]);
+}
+joinPlayer();
+
+/* -----------------------------------------------------------
+   AUTO START CHECK LOOP
+------------------------------------------------------------- */
+
+setInterval(async () => {
+    let { data: players } = await supabase.from("players").select("*");
+    let { data: gs } = await supabase.from("game_state").select("*");
+
+    if (!players || players.length < 2) return;
+
+    let allReady = players.filter(p => p.ready).length >= 2;
+    let g = gs[0];
+
+    if (g.status === "waiting" && allReady) {
+        startCountdown();
     }
-  } else {
-    statusCountdown.textContent = '—';
-    playBtn.disabled = true;
-  }
+}, 3000);
+
+/* -----------------------------------------------------------
+   START COUNTDOWN
+------------------------------------------------------------- */
+
+async function startCountdown() {
+    await supabase
+        .from("game_state")
+        .update({
+            status: "countdown",
+            countdown: 60,
+            round_started_at: new Date().toISOString()
+        })
+        .eq("room", "public");
 }
 
-/* =========================
-   show round results (client computes hits)
-   ========================= */
-function showRoundResult(drawn) {
-  if (!Array.isArray(drawn)) return;
-  const hits = localSelected.filter(n => drawn.includes(n));
-  const points = hits.length * (myAmount || 10);
-  document.querySelectorAll('.num').forEach(el => el.classList.remove('hit'));
-  hits.forEach(h => {
-    const box = [...document.querySelectorAll('.num')].find(x => Number(x.dataset.value) === h);
-    if (box) box.classList.add('hit');
-  });
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = `
-    🎯 Drawn: ${drawn.join(', ')}<br>
-    ✔ Hits: <b>${hits.length}</b><br>
-    ⭐ Points: <b>${points}</b>
-  `;
-  // save to leaderboard
-  saveScore(myUsername || 'Guest', points);
-}
+/* -----------------------------------------------------------
+   COUNTDOWN LOOP (HOST ONLY)
+------------------------------------------------------------- */
 
-/* =========================
-   update players UI & status box
-   ========================= */
-async function updatePlayersUI(players) {
-  if (!players) players = await fetchPlayers();
-  playersListEl.innerHTML = '';
-  statusPlayers.textContent = (players||[]).length || 0;
+setInterval(async () => {
+    let { data } = await supabase.from("game_state").select("*");
+    let g = data[0];
 
-  // show host based on earliest
-  if ((players||[]).length > 0) {
-    const earliest = players.slice().sort((a,b)=>{
-      if (a.joined_at && b.joined_at) return new Date(a.joined_at) - new Date(b.joined_at);
-      if (a.id && b.id) return a.id - b.id;
-      return 0;
-    })[0];
-    statusHost.textContent = earliest?.username || '—';
-  } else {
-    statusHost.textContent = '—';
-  }
+    if (g.status !== "countdown") return;
 
-  (players||[]).forEach(p => {
-    const div = document.createElement('div'); div.className='player-item';
-    const submitted = (p.picks && Array.isArray(p.picks) && p.picks.length >=5) || (p.ready === true);
-    div.innerHTML = `<div style="text-align:left"><strong>${p.username || 'Guest'}</strong><div class="small">amt: ${p.amount || '-'}</div></div>
-                     <div>${submitted ? '<span class="submitted-badge">SUBMITTED</span>' : '<span class="not-submitted">Not ready</span>'}</div>`;
-    playersListEl.appendChild(div);
-  });
-}
+    // HOST is first player in list
+    let { data: players } = await supabase.from("players").select("*");
 
-/* =========================
-   check start conditions helper
-   ========================= */
-async function checkStartConditions(players) {
-  if (!players) players = await fetchPlayers();
-  const submittedCount = (players||[]).filter(p => {
-    if (p.picks && Array.isArray(p.picks) && p.picks.length >= 5) return true;
-    if (p.ready === true) return true;
-    return false;
-  }).length;
-  // let hostTick handle the real countdown; we only refresh election
-  await evaluateHostRole();
-}
+    if (!players || players.length === 0) return;
 
-/* =========================
-   ensure game_state row exists on boot
-   ========================= */
-(async function ensureGameStateRow(){
-  try {
-    const s = await fetchGameState();
-    if (!s) {
-      await supabase.from('game_state').insert([{ room:'public', status:'waiting', countdown:60, drawn_numbers:[], min_players:2 }]);
+    let host = players[0].username;
+    if (username !== host) return;
+
+    let now = Date.now();
+    let start = new Date(g.round_started_at).getTime();
+    let diff = Math.floor((now - start) / 1000);
+    let left = 60 - diff;
+
+    if (left < 0) left = 0;
+
+    await supabase
+        .from("game_state")
+        .update({ countdown: left })
+        .eq("room", "public");
+
+    if (left === 0) {
+        finishRound();
     }
-  } catch(e){ console.warn('ensureGameStateRow failed', e); }
-})();
+}, 1000);
 
-/* =========================
-   restore saved join if present
-   ========================= */
-(async function boot() {
-  const storedName = localStorage.getItem('username');
-  const storedAmt = Number(localStorage.getItem('entryAmount') || 0);
-  if (storedName && storedAmt) {
-    try {
-      const row = await insertPlayer(storedName, storedAmt);
-      myRowId = row.id; myUsername = row.username || storedName; myAmount = row.amount || storedAmt;
-      isInLobby = true;
-      entryArea.style.display = 'none'; lobbyBox.style.display='block'; gridArea.style.display='block';
-      await setupRealtime();
-      const players = await fetchPlayers(); updatePlayersUI(players); evaluateHostRole();
-    } catch(e){ console.warn('auto rejoin failed', e); }
-  }
-})();
+/* -----------------------------------------------------------
+   FINISH ROUND → DRAW NUMBERS + FIND WINNERS
+------------------------------------------------------------- */
 
-/* =========================
-   entry buttons wiring
-   ========================= */
-document.querySelectorAll('.entry-btn').forEach(b => {
-  b.addEventListener('click', async () => {
-    const amt = Number(b.dataset.amt || 10);
-    const uname = myUsername || genUsername();
-    try {
-      await joinLobbyFlow(uname, amt);
-    } catch(e){ console.error('join error', e); alert('Failed to join lobby'); }
-  });
-});
+async function finishRound() {
+    let draw = [];
 
-/* =========================
-   realtime variables already defined above
-   ========================= */
+    while (draw.length < 20) {
+        let n = Math.floor(Math.random() * 60) + 1;
+        if (!draw.includes(n)) draw.push(n);
+    }
 
-/* =========================
-   beforeunload cleanup
-   ========================= */
-window.addEventListener('beforeunload', async () => {
-  if (myRowId) {
-    try { await supabase.from('players').delete().eq('id', myRowId); } catch(e){}
-  }
-});
+    let { data: players } = await supabase.from("players").select("*");
+
+    let winners = [];
+
+    players.forEach(p => {
+        let matches = p.picks.filter(v => draw.includes(v));
+        if (matches.length >= 3) {
+            winners.push({ user: p.username, matched: matches.length });
+        }
+    });
+
+    await supabase
+        .from("game_state")
+        .update({
+            status: "finished",
+            drawn_numbers: draw,
+            round_winners: winners,
+            round_finished_at: new Date().toISOString()
+        })
+        .eq("room", "public");
+
+    // Reset after 12 seconds
+    setTimeout(resetLobby, 12000);
+}
+
+/* -----------------------------------------------------------
+   RESET LOBBY
+------------------------------------------------------------- */
+
+async function resetLobby() {
+    await supabase
+        .from("players")
+        .update({ ready: false, picks: [] });
+
+    await supabase
+        .from("game_state")
+        .update({
+            status: "waiting",
+            countdown: null,
+            drawn_numbers: [],
+            round_winners: []
+        })
+        .eq("room", "public");
+}
+
 </script>
+
 </body>
 </html>
