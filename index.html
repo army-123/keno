@@ -61,7 +61,6 @@
       100% { opacity: 0.4; }
     }
 
-    /* Number Grid */
     .grid {
       margin-top: 30px;
       display: grid;
@@ -143,41 +142,32 @@
     Countdown: <span id="countdownNum">60</span>s
   </div>
 
-  <!-- Numbers Grid -->
   <div class="grid" id="numbersGrid"></div>
 
   <button id="submitNumbersBtn" onclick="submitNumbers()">Submit Numbers</button>
 
-  <!-- Results Box -->
   <div class="results-box" id="resultsBox" style="display:none;"></div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-/* -------------------------------------------
-   SUPABASE INIT
-------------------------------------------- */
 const SUPABASE_URL = "https://vdhuexwgplylprgpddoq.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
+const SUPABASE_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* -------------------------------------------
-   GLOBAL VARIABLES
-------------------------------------------- */
 let username = "user_" + Math.floor(Math.random() * 100000);
-let chosenRoom = null;      // 10, 20, 50
-let selectedNumbers = [];   // Player picks
+let chosenRoom = null;
+let selectedNumbers = [];
 let wallet = 200;
 let countdownStarted = false;
 let countdownInterval = null;
 
-/* Update wallet UI */
 document.getElementById("walletAmount").innerText = wallet;
 
-/* -------------------------------------------
-   GENERATE NUMBER GRID (1–100)
-------------------------------------------- */
+/* GRID */
 function createGrid() {
   const grid = document.getElementById("numbersGrid");
   grid.innerHTML = "";
@@ -205,94 +195,49 @@ function createGrid() {
     grid.appendChild(btn);
   }
 }
-
 createGrid();
 
-/* -------------------------------------------
-   JOIN ROOM (10 / 20 / 50)
-------------------------------------------- */
+/* JOIN */
 async function joinRoom(amount) {
   chosenRoom = amount;
 
   document.getElementById("joinScreen").style.display = "none";
   document.getElementById("gameScreen").style.display = "block";
-  document.getElementById("waitAnim").style.display = "block";
 
-  // Insert player into DB
-  await db
-    .from("players")
-    .insert({
-      username: username,
-      room: chosenRoom,
-      ready: false,
-      picks: [],
-      wallet: wallet,
-    });
+  await db.from("players").insert({
+    username,
+    room: chosenRoom,
+    ready: false,
+    picks: [],
+    wallet
+  });
 
   listenForPlayers();
 }
-/* -------------------------------------------
-   REAL-TIME PLAYER LISTENER
-------------------------------------------- */
+
+/* LISTENER */
 async function listenForPlayers() {
-  db
-    .channel("players-room-" + chosenRoom)
-    .on(
-      "postgres_changes",
+  db.channel("players-room-" + chosenRoom)
+    .on("postgres_changes",
       { event: "*", schema: "public", table: "players" },
-      () => checkRoom()
-    )
+      () => checkRoom())
     .subscribe();
 
   checkRoom();
 }
 
-/* -------------------------------------------
-   CHECK ROOM STATUS
-------------------------------------------- */
+/* FIXED: CHECK ROOM */
 async function checkRoom() {
   const { data: players } = await db
     .from("players")
     .select("*")
     .eq("room", chosenRoom);
 
-  document.getElementById("walletAmount").innerText = wallet;
-
-  // If less than 2 players → WAIT
-  if (players.length < 2) {
-    document.getElementById("waitAnim").style.display = "block";
-    return;
-  }
-
-  // If already running countdown → skip
-  if (!countdownStarted) {
-    countdownStarted = true;
-    startCountdown();
-  }
+  // DO NOT START COUNTDOWN HERE ANYMORE
+  if (players.length < 2) return;
 }
 
-/* -------------------------------------------
-   START COUNTDOWN
-------------------------------------------- */
-function startCountdown() {
-  let timeLeft = 60;
-  const text = document.getElementById("waitAnim");
-  text.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
-
-  countdownInterval = setInterval(() => {
-    timeLeft--;
-    text.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
-
-    if (timeLeft <= 0) {
-      clearInterval(countdownInterval);
-      revealResults();
-    }
-  }, 1000);
-}
-
-/* -------------------------------------------
-   SUBMIT PLAYER'S NUMBERS
-------------------------------------------- */
+/* FIXED: SUBMIT NUMBERS */
 async function submitNumbers() {
   await db
     .from("players")
@@ -303,82 +248,94 @@ async function submitNumbers() {
     .eq("username", username);
 
   document.getElementById("submitNumbersBtn").style.display = "none";
+
+  document.getElementById("waitAnim").style.display = "block";
+  document.getElementById("waitAnim").innerHTML = "✨ Waiting for opponent… ✨";
+
+  if (!countdownStarted) {
+    countdownStarted = true;
+    startCountdown();
+  }
 }
 
-/* -------------------------------------------
-   REVEAL WINNER & DRAW NUMBERS
-------------------------------------------- */
+/* FIXED: COUNTDOWN */
+function startCountdown() {
+  let timeLeft = 60;
+  const wait = document.getElementById("waitAnim");
+
+  wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
+
+  countdownInterval = setInterval(async () => {
+    timeLeft--;
+    wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
+
+    const { data: players } = await db
+      .from("players")
+      .select("ready")
+      .eq("room", chosenRoom);
+
+    const readyCount = players.filter(p => p.ready).length;
+
+    if (readyCount >= 2) {
+      clearInterval(countdownInterval);
+      revealResults();
+      return;
+    }
+
+    if (timeLeft <= 0) {
+      clearInterval(countdownInterval);
+      revealResults();
+    }
+  }, 1000);
+}
+
+/* RESULTS */
 async function revealResults() {
-  document.getElementById("waitAnim").innerHTML =
-    "🎰 Drawing results...";
+  document.getElementById("waitAnim").innerHTML = "🎰 Drawing results...";
 
   const { data: players } = await db
     .from("players")
     .select("*")
     .eq("room", chosenRoom);
 
-  // Generate 20 winning numbers
   const winning = [];
   while (winning.length < 20) {
     let n = Math.floor(Math.random() * 100) + 1;
     if (!winning.includes(n)) winning.push(n);
   }
 
-  // HTML reveal
   document.getElementById("waitAnim").innerHTML =
     `<b>Winning numbers:</b><br>${winning.join(", ")}`;
 
-  // Calculate each player's score
   let results = players.map(p => {
     let hits = p.picks.filter(num => winning.includes(num)).length;
-    return {
-      username: p.username,
-      wallet: p.wallet,
-      hits: hits
-    };
+    return { username: p.username, wallet: p.wallet, hits };
   });
 
-  // Find highest score
   let maxHits = Math.max(...results.map(r => r.hits));
   let winners = results.filter(r => r.hits === maxHits);
 
-  // Split pot
   let pot = chosenRoom * players.length;
   let prize = Math.floor(pot / winners.length);
 
-  // Update wallets
   for (let w of winners) {
     await db
       .from("players")
-      .update({
-        wallet: w.wallet + prize
-      })
+      .update({ wallet: w.wallet + prize })
       .eq("username", w.username);
 
-    // If user is winner update local wallet
-    if (w.username === username) {
-      wallet += prize;
-    }
+    if (w.username === username) wallet += prize;
   }
 
-  // Display winner
   document.getElementById("waitAnim").innerHTML +=
-    `<br><br>🏆 Winner(s): <b>${winners
-      .map(w => w.username)
-      .join(", ")}</b><br>
+    `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b><br>
      Prize: ${prize} coins`;
 
   setTimeout(resetRoom, 10000);
 }
 
-/* -------------------------------------------
-   RESET ROOM AFTER ROUND
-------------------------------------------- */
 async function resetRoom() {
-  await db
-    .from("players")
-    .delete()
-    .eq("room", chosenRoom);
+  await db.from("players").delete().eq("room", chosenRoom);
 
   selectedNumbers = [];
   countdownStarted = false;

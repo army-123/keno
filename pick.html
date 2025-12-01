@@ -66,11 +66,18 @@ const db = supabase.createClient(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
 );
 
+// Load user and entry amount
 let username = localStorage.getItem("ziii_user");
+if (!username) {
+    username = "user_" + Math.floor(Math.random() * 100000);
+    localStorage.setItem("ziii_user", username);
+}
+
 let entry = Number(localStorage.getItem("ziii_amount"));
-
 let selected = [];
+let wallet = 200;
 
+/* GENERATE GRID */
 const grid = document.getElementById("numberGrid");
 for (let i = 1; i <= 100; i++) {
     const div = document.createElement("div");
@@ -90,17 +97,29 @@ for (let i = 1; i <= 100; i++) {
     grid.appendChild(div);
 }
 
+/* FIXED SUBMIT FUNCTION */
 async function submitNumbers() {
     if (selected.length !== 5) return alert("Select 5 numbers!");
 
-    await db.from("game_entries").insert([{
-        username,
-        entry,
-        numbers: selected,
-        status: "waiting"
+    // FIRST insert the player into the players table
+    await db.from("players").insert([{
+        username: username,
+        room: entry,
+        ready: false,
+        picks: [],
+        wallet: wallet
     }]);
 
-    window.location.href = "index.html"; // go to game
+    // THEN update the player's picks + ready
+    await db.from("players")
+        .update({
+            picks: selected,
+            ready: true
+        })
+        .eq("username", username);
+
+    // Go to game screen (index.html)
+    window.location.href = "index.html";
 }
 </script>
 
