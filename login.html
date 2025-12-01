@@ -3,125 +3,133 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Zii Game — Login</title>
+<title>Ziii Game — Login</title>
 
-<!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
     body {
         margin: 0;
-        font-family: "Poppins", sans-serif;
         height: 100vh;
         background: linear-gradient(135deg, #ff00cc, #3333ff);
         display: flex;
         justify-content: center;
         align-items: center;
+        font-family: "Poppins", sans-serif;
         color: white;
-        overflow: hidden;
     }
-
-    .login-box {
-        width: 90%;
-        max-width: 420px;
-        padding: 40px;
+    .box {
+        width: 92%;
+        max-width: 460px;
         background: rgba(0,0,0,0.35);
         backdrop-filter: blur(12px);
+        padding: 32px;
         border-radius: 20px;
         text-align: center;
         box-shadow: 0 0 25px rgba(255,255,255,0.2);
-        animation: pop 0.7s ease;
     }
-
-    @keyframes pop {
-        from { transform: scale(0.85); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
-    }
-
     h1 {
-        font-size: 2rem;
-        font-weight: 600;
-        margin-bottom: 20px;
-        text-shadow: 0 0 10px rgba(255,255,255,0.4);
+        margin: 0 0 20px 0;
+        font-size: 28px;
+        color: #ffcc00;
+        text-shadow: 0 0 12px rgba(255,204,0,0.6);
     }
-
     input {
         width: 100%;
         padding: 14px;
-        border-radius: 12px;
+        font-size: 16px;
+        border-radius: 10px;
         border: none;
-        margin-top: 15px;
-        font-size: 1rem;
         outline: none;
+        margin-bottom: 20px;
     }
-
     .btn {
         width: 100%;
         padding: 15px;
-        margin-top: 25px;
-        background: linear-gradient(90deg, #ffcc00, #ff6600);
-        color: black;
-        font-size: 1.1rem;
-        font-weight: bold;
-        border: none;
+        margin-top: 12px;
         border-radius: 12px;
+        border: none;
         cursor: pointer;
-        box-shadow: 0 0 12px rgba(255, 153, 0, 0.8);
-        transition: 0.3s;
+        font-size: 16px;
+        font-weight: bold;
+        color: black;
+        background: linear-gradient(90deg, #ffcc00, #ff6600);
+        box-shadow: 0 0 12px rgba(255,153,0,0.8);
     }
-
-    .btn:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 18px rgba(255, 153, 0, 1);
-    }
-
-    .footer {
-        margin-top: 25px;
-        font-size: 0.9rem;
-        opacity: 0.7;
+    #walletDisplay { 
+        margin-bottom: 12px; 
+        font-size: 18px; 
+        color:#00ffea;
+        font-weight: bold;
     }
 </style>
 </head>
 
 <body>
 
-<div class="login-box">
-    <h1>Zii Game</h1>
+<div class="box">
+    <h1>Ziii Game</h1>
+
+    <div id="walletDisplay">Wallet: loading...</div>
 
     <input type="text" id="username" placeholder="Enter username">
 
-    <button class="btn" onclick="startGame()">Start Game</button>
-
-    <div class="footer">Multiplayer Keno — Fast • Fun • Real-time</div>
+    <button class="btn" onclick="join(10)">Join with 10</button>
+    <button class="btn" onclick="join(20)">Join with 20</button>
+    <button class="btn" onclick="join(50)">Join with 50</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    const supabaseUrl = "YOUR_URL_HERE";
-    const supabaseKey = "YOUR_KEY_HERE";
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const db = supabase.createClient(
+    "https://vdhuexwgplylprgpddoq.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
 
-    // Auto-generate username if empty
-    function randomName() {
-        return "user_" + Math.floor(Math.random() * 900000 + 100000);
+let username = localStorage.getItem("ziii_user");
+
+// Load wallet if exists
+async function loadWallet() {
+    if (!username) {
+        document.getElementById("walletDisplay").innerText = "Wallet: —";
+        return;
     }
 
-    async function startGame() {
-        let username = document.getElementById("username").value.trim();
+    let { data } = await db.from("players").select("wallet").eq("username", username).maybeSingle();
 
-        if (username === "") {
-            username = randomName();
-        }
-
-        // Save username locally
-        localStorage.setItem("keno_username", username);
-
-        // You can also add supabase auth here later if needed
-
-        // Redirect to main game
-        window.location.href = "index.html";
+    if (data) {
+        document.getElementById("walletDisplay").innerText = "Wallet: " + data.wallet + " coins";
+    } else {
+        document.getElementById("walletDisplay").innerText = "Wallet: 200 coins";
     }
+}
+loadWallet();
+
+async function join(amount) {
+    username = document.getElementById("username").value.trim() || ("user_" + Math.floor(Math.random()*900000));
+
+    localStorage.setItem("ziii_user", username);
+
+    // Check wallet
+    let { data } = await db.from("players").select("*").eq("username", username).maybeSingle();
+
+    let wallet = data?.wallet ?? 200;
+
+    if (wallet < amount) {
+        alert("Not enough coins!");
+        return;
+    }
+
+    // Deduct entry cost
+    await db.from("players")
+        .upsert({ username, wallet: wallet - amount });
+
+    // Save room amount
+    localStorage.setItem("ziii_amount", amount);
+
+    window.location.href = "index.html";
+}
 </script>
 
 </body>

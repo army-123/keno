@@ -1,533 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ziii game</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ziii Game</title>
 
-<!-- Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-  :root{
-    --bg:#0b0b0b;
-    --panel:#0f0f10;
-    --gold:#d8a800;
-    --muted:#9a9a9a;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;
-    font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial;
-    background: radial-gradient(circle at 10% 10%, rgba(216,168,0,0.04), transparent 15%),
-                linear-gradient(180deg,#050505 0%, #0b0b0b 100%);
-    color:#fff;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    padding:28px;
-    text-align:center;
-  }
+    body {
+        margin: 0;
+        background: #0d0d0d;
+        color: white;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
 
-  header{
-    margin-bottom:20px;
-  }
-  header h1{
-    font-size:34px;
-    margin:0;
-    letter-spacing:1px;
-    text-transform:capitalize;
-    color:var(--gold);
-    text-shadow:0 6px 18px rgba(216,168,0,0.08);
-  }
+    h1 {
+        margin-top: 15px;
+        color: #ffcc00;
+        text-shadow: 0 0 10px #ffcc00;
+    }
 
-  .container{
-    max-width:1100px;
-    margin: 0 auto;
-  }
+    #walletBox {
+        font-size: 18px;
+        margin-top: 5px;
+        color: #00f2ff;
+        font-weight: bold;
+    }
 
-  .lobby-panel{
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    border-radius:14px;
-    padding:22px;
-    display:flex;
-    gap:18px;
-    align-items:flex-start;
-    justify-content:space-between;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-  }
+    /* WAITING TEXT GLOW */
+    #waitingBox {
+        margin-top: 15px;
+        font-size: 22px;
+        font-weight: bold;
+        color: #ffcc00;
+        text-shadow: 0 0 15px #ffcc00;
+        display: none;
+        animation: glow 1.2s infinite alternate;
+    }
 
-  .players-list{
-    width:52%;
-    text-align:left;
-  }
-  .players-list h2{ margin:0 0 12px 0; color:var(--gold) }
-  .player-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:10px 12px;
-    border-radius:8px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
-    margin-bottom:8px;
-    border: 1px solid rgba(255,255,255,0.02);
-  }
+    @keyframes glow {
+        from { text-shadow: 0 0 8px #ffcc00; opacity: 0.7; }
+        to { text-shadow: 0 0 22px #ffee88; opacity: 1; }
+    }
 
-  .status-pill {
-    padding:8px 14px;
-    border-radius:999px;
-    font-weight:600;
-    font-size:13px;
-  }
-  .submitted { background:#0fa04a; color:#fff;}
-  .notready { background:#444; color:#ddd;}
+    /* NUMBER GRID */
+    #numberGrid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 8px;
+        padding: 20px;
+        max-width: 600px;
+        margin: auto;
+    }
 
-  .controls{
-    width:44%;
-    text-align:left;
-  }
-  .controls h3 { color:var(--gold); margin-top:0 }
-  .statline { margin:10px 0; color:var(--muted) }
-  .btn {
-    display:inline-block;
-    padding:12px 18px;
-    border-radius:10px;
-    border:none;
-    cursor:pointer;
-    font-weight:700;
-    color:#000;
-    background: linear-gradient(180deg,var(--gold), #b27f00);
-    box-shadow: 0 6px 18px rgba(178,127,0,0.25);
-    margin-right:10px;
-  }
-  .btn.ghost{
-    background:transparent;
-    color:#ddd;
-    border:1px solid rgba(255,255,255,0.04);
-    box-shadow:none;
-  }
+    .num {
+        padding: 12px;
+        background: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.2s;
+    }
 
-  /* Number grid */
-  .grid-wrap{
-    margin-top:28px;
-    text-align:center;
-  }
-  .grid-title{ color:var(--muted); margin-bottom:12px; font-weight:500}
-  .grid{
-    display:grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap:12px;
-    width:100%;
-    max-width:1000px;
-    margin:0 auto;
-  }
+    .num.selected {
+        background: #ffd369;
+        color: black;
+        box-shadow: 0 0 8px #ffdd88;
+    }
 
-  .num{
-    padding:14px 6px;
-    border-radius:10px;
-    background:#111;
-    border:2px solid rgba(216,168,0,0.08);
-    color:#fff;
-    cursor:pointer;
-    font-weight:700;
-    transition: transform .12s ease, box-shadow .12s ease;
-    user-select:none;
-  }
-  .num:hover{ transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.7) }
-  .num.selected {
-    background: #111;
-    border-color: var(--gold);
-    box-shadow: 0 6px 20px rgba(216,168,0,0.14), inset 0 -6px 18px rgba(0,0,0,0.5);
-    color:var(--gold);
-  }
+    .num.hit {
+        background: #00ff44;
+        color: black;
+        box-shadow: 0 0 10px #00ff88;
+    }
 
-  /* results modal */
-  .modal-backdrop{
-    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.7));
-    z-index:90;
-  }
-  .modal{
-    width:92%; max-width:680px; border-radius:12px; background: #0f0f0f; padding:22px;
-    box-shadow:0 20px 60px rgba(0,0,0,0.6);
-    text-align:center; color:#fff;
-  }
-  .modal h2{ color:var(--gold); margin:0 0 12px 0 }
-  .drawn { margin:12px 0; font-weight:700; color:#fff }
-  .winner-row{ margin:8px 0; padding:8px; border-radius:8px; background: rgba(255,255,255,0.02) }
+    button {
+        padding: 12px 25px;
+        font-size: 20px;
+        margin: 10px;
+        border-radius: 10px;
+        background: #ffcc00;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+    }
 
-  /* responsive */
-  @media (max-width:880px){
-    .lobby-panel{ flex-direction:column; gap:12px }
-    .players-list, .controls{ width:100% }
-    .grid{ grid-template-columns: repeat(6,1fr) }
-  }
+    #countdown {
+        margin-top: 10px;
+        font-size: 28px;
+        color: #00eaff;
+        font-weight: bold;
+        text-shadow: 0 0 12px #00eaff;
+        display: none;
+    }
+
+    #results {
+        margin-top: 20px;
+        padding: 12px;
+        background: rgba(255,255,255,0.1);
+        width: 85%;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 10px;
+        font-size: 18px;
+    }
 </style>
 </head>
+
 <body>
 
-<header class="container">
-  <h1>ziii game</h1>
-</header>
+<h1>Ziii Game</h1>
+<div id="walletBox">Wallet: Loading...</div>
 
-<main class="container">
-  <div class="lobby-panel" id="lobbyPanel">
-    <div class="players-list">
-      <h2>Public Lobby</h2>
-      <div id="PlayersList">Loading players...</div>
-      <div style="margin-top:12px;">
-        <button class="btn ghost" id="leaveBtn">Leave Lobby</button>
-        <button class="btn" id="submitBtn">Submit 5 Numbers</button>
-      </div>
-    </div>
+<div id="waitingBox">✨ Waiting for players… ✨</div>
 
-    <div class="controls">
-      <h3>Lobby Status</h3>
-      <div class="statline">Players: <span id="playerCount">—</span></div>
-      <div class="statline">Countdown: <strong id="countdown">—</strong></div>
-      <div class="statline">Status: <strong id="status">waiting</strong></div>
-      <div class="statline">Host: <strong id="host">—</strong></div>
-      <p style="color:var(--muted); font-size:13px; margin-top:12px">
-        When at least the minimum players submit, a 60s countdown begins (host-synced).
-      </p>
-    </div>
-  </div>
+<div id="countdown"></div>
 
-  <div class="grid-wrap">
-    <div class="grid-title">Pick up to 5 numbers</div>
-    <div class="grid" id="grid"></div>
-  </div>
-</main>
+<div id="numberGrid"></div>
 
-<!-- results modal -->
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal" id="modal">
-    <h2>Round Results</h2>
-    <div class="drawn" id="drawnNumbers">—</div>
-    <div id="winnersBox"></div>
-    <div style="margin-top:18px;">
-      <button class="btn" id="closeModal">OK</button>
-    </div>
-  </div>
-</div>
+<button id="submitBtn">Submit Numbers</button>
 
-<!-- supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<div id="results"></div>
+
 
 <script>
-/* -------------------------
-   Config (your supabase)
-----------------------------*/
-const SUPABASE_URL = "https://vdhuexwgplylprgpddoq.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
+/* ===========================
+   SUPABASE INIT
+=========================== */
+const db = supabase.createClient(
+    "https://vdhuexwgplylprgpddoq.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let username = localStorage.getItem("ziii_user");
+let entryAmount = Number(localStorage.getItem("ziii_amount"));
 
-/* -------------------------
-   App state
-----------------------------*/
-let username = localStorage.getItem('ziii_user') || ("user_" + Math.floor(Math.random()*900000+100000));
-localStorage.setItem('ziii_user', username);
+let playerCount = 0;
+let countdownStarted = false;
 
-let picks = [];
-const MAX_PICKS = 5;
-let isHost = false;
+/* ===========================
+   WALLET DISPLAY
+=========================== */
+async function loadWallet() {
+    let { data } = await db
+        .from("players")
+        .select("wallet")
+        .eq("username", username)
+        .maybeSingle();
 
-/* -------------------------
-   Build grid 1..60
-----------------------------*/
-const gridEl = document.getElementById('grid');
-for(let i=1;i<=60;i++){
-  const b = document.createElement('div');
-  b.className = 'num';
-  b.innerText = i;
-  b.dataset.value = i;
-  b.onclick = () => togglePick(i, b);
-  gridEl.appendChild(b);
+    document.getElementById("walletBox").innerText =
+        "Wallet: " + (data?.wallet ?? 0) + " coins";
 }
+loadWallet();
 
-function togglePick(n, el){
-  if(picks.includes(n)){
-    picks = picks.filter(x=>x!==n);
-    el.classList.remove('selected');
-    return;
-  }
-  if(picks.length >= MAX_PICKS) return;
-  picks.push(n);
-  el.classList.add('selected');
-}
 
-/* -------------------------
-   Buttons
-----------------------------*/
-document.getElementById('submitBtn').addEventListener('click', submitPicks);
-document.getElementById('leaveBtn').addEventListener('click', leaveLobby);
-document.getElementById('closeModal').addEventListener('click', closeModal);
+/* ===========================
+   NUMBER PICKING
+=========================== */
+let selected = [];
+const grid = document.getElementById("numberGrid");
 
-/* -------------------------
-   DB helpers
-----------------------------*/
-async function ensurePlayerRow(){
-  // create player row if not exists
-  const { data } = await supabase
-    .from('players')
-    .select('id')
-    .eq('username', username)
-    .maybeSingle();
+for (let i = 1; i <= 100; i++) {
+    const div = document.createElement("div");
+    div.className = "num";
+    div.innerText = i;
 
-  if(!data){
-    await supabase.from('players').insert({
-      username, ready:false, picks:[], entry_amount:10
-    });
-  }
-}
-ensurePlayerRow();
-
-/* -------------------------
-   Real-time listeners
-----------------------------*/
-const CHANNEL_NAME = 'realtime-lobby';
-
-supabase
-  .channel(CHANNEL_NAME)
-  .on('postgres_changes', { event: '*', schema:'public', table:'players' }, () => { refreshUI(); })
-  .on('postgres_changes', { event: '*', schema:'public', table:'game_state' }, () => { refreshUI(); })
-  .subscribe();
-
-/* -------------------------
-   Refresh UI (players + state)
-----------------------------*/
-async function refreshUI(){
-  // players
-  const { data: players } = await supabase.from('players').select('*').order('id',{ascending:true});
-  renderPlayers(players);
-
-  // game_state
-  const { data: gs } = await supabase.from('game_state').select('*').eq('room','public').maybeSingle();
-  if(gs){
-    renderState(gs, players);
-  }
-}
-
-function renderPlayers(players){
-  const out = document.getElementById('PlayersList');
-  if(!players || players.length === 0){
-    out.innerHTML = "<div style='color:var(--muted)'>No players yet</div>";
-    document.getElementById('playerCount').innerText = "0";
-    return;
-  }
-  let html = '';
-  players.forEach(p => {
-    html += `<div class="player-row">
-        <div>${p.username}<div style="color:var(--muted);font-size:12px">amt: ${p.entry_amount||10}</div></div>
-        <div class="status-pill ${p.ready ? 'submitted' : 'notready'}">${p.ready ? 'SUBMITTED' : 'Not ready'}</div>
-      </div>`;
-  });
-  out.innerHTML = html;
-  document.getElementById('playerCount').innerText = players.length;
-
-  // stable host = first by id
-  if(players.length > 0){
-    const host = players[0].username;
-    document.getElementById('host').innerText = host;
-    isHost = (host === username);
-  } else {
-    document.getElementById('host').innerText = '—';
-    isHost = false;
-  }
-}
-
-function renderState(gs, players){
-  document.getElementById('status').innerText = gs.status || 'waiting';
-  document.getElementById('countdown').innerText = gs.countdown == null ? '—' : gs.countdown;
-
-  // auto-start condition: when enough players ready and state waiting -> host starts
-  const readyCount = (players || []).filter(p => p.ready).length;
-  const minPlayers = gs.min_players || 2;
-
-  if(gs.status === 'waiting' && readyCount >= minPlayers && isHost){
-    // attempt to start countdown
-    startCountdown();
-  }
-
-  // if finished -> show results modal
-  if(gs.status === 'finished'){
-    showResultsModal(gs);
-  }
-}
-
-/* -------------------------
-   Submit picks
-----------------------------*/
-async function submitPicks(){
-  if(picks.length !== MAX_PICKS){
-    alert('Pick exactly 5 numbers');
-    return;
-  }
-  // update or insert player picks + ready=true
-  await supabase.from('players')
-    .update({ picks: picks, ready: true })
-    .eq('username', username);
-}
-
-/* -------------------------
-   Leave lobby
-----------------------------*/
-async function leaveLobby(){
-  await supabase.from('players').delete().eq('username', username);
-  // clear picks locally and reload UI
-  picks = [];
-  document.querySelectorAll('.num.selected').forEach(el=>el.classList.remove('selected'));
-  refreshUI();
-}
-
-/* -------------------------
-   Countdown & Host ticking
-----------------------------*/
-let hostTickRunning = false;
-
-async function startCountdown(){
-  // set game_state to countdown with timestamp
-  await supabase.from('game_state')
-    .update({
-      status:'countdown',
-      countdown:60,
-      round_started_at: new Date().toISOString()
-    })
-    .eq('room','public');
-
-  if(isHost && !hostTickRunning){
-    hostTickRunning = true;
-    hostTick();
-  }
-}
-
-async function hostTick(){
-  // safe loop run by host
-  try{
-    const { data: gs } = await supabase.from('game_state').select('*').eq('room','public').maybeSingle();
-    if(!gs) { hostTickRunning=false; return; }
-    if(gs.status !== 'countdown'){ hostTickRunning=false; return; }
-
-    // compute seconds left based on round_started_at (server-synced)
-    const started = new Date(gs.round_started_at).getTime();
-    const now = Date.now();
-    let elapsed = Math.floor((now - started) / 1000);
-    let left = Math.max(0, 60 - elapsed);
-
-    // update countdown in DB
-    await supabase.from('game_state').update({ countdown: left }).eq('room','public');
-
-    if(left <= 0){
-      // finishRound only executed by host one time
-      await finishRound();
-      hostTickRunning = false;
-      return;
-    }
-
-    // continue looping every 1s
-    setTimeout(hostTick, 1000);
-  }catch(err){
-    console.error('hostTick error', err);
-    hostTickRunning = false;
-  }
-}
-
-/* -------------------------
-   Finish round: Draw 20 numbers & compute winners
-----------------------------*/
-async function finishRound(){
-  try{
-    // fetch current players
-    const { data: players } = await supabase.from('players').select('*');
-
-    // draw 20 unique numbers
-    const drawn = [];
-    while(drawn.length < 20){
-      const n = Math.floor(Math.random()*60) + 1;
-      if(!drawn.includes(n)) drawn.push(n);
-    }
-
-    // compute winners: those with matches >=3
-    const winners = [];
-    for(const p of (players||[])){
-      if(!p.picks || !Array.isArray(p.picks)) continue;
-      const matches = p.picks.filter(x => drawn.includes(x)).length;
-      if(matches >= 3){
-        winners.push({ username: p.username, matches });
-      }
-      // optionally write leaderboard points (example: matches*10)
-      if(matches > 0){
-        try{
-          await supabase.from('leaderboard').insert([{ username: p.username, score: matches * 10 }]);
-        }catch(e){
-          // ignore leaderboard failures
+    div.onclick = () => {
+        if (selected.includes(i)) {
+            selected = selected.filter(n => n !== i);
+            div.classList.remove("selected");
+        } else if (selected.length < 5) {
+            selected.push(i);
+            div.classList.add("selected");
         }
-      }
+    };
+
+    grid.appendChild(div);
+}
+
+
+/* ===========================
+   SUBMIT NUMBERS
+=========================== */
+document.getElementById("submitBtn").onclick = async () => {
+    if (selected.length !== 5) {
+        alert("Select 5 numbers!");
+        return;
     }
 
-    // persist results
-    await supabase.from('game_state')
-      .update({
-        status:'finished',
-        countdown: 0,
-        drawn_numbers: drawn,
-        round_winners: winners,
-        round_finished_at: new Date().toISOString()
-      })
-      .eq('room','public');
+    document.getElementById("waitingBox").style.display = "block";
 
-    // after short delay reset the round to waiting so new players can join
-    setTimeout(async ()=>{
-      // clear ready flags on players (keep rows)
-      await supabase.from('players').update({ ready:false, picks:[] });
+    await db.from("game_entries").insert([{
+        username,
+        entry: entryAmount,
+        numbers: selected,
+        status: "waiting"
+    }]);
+};
 
-      // reset game_state (keep min_players default)
-      await supabase.from('game_state')
-        .update({
-          status:'waiting',
-          countdown: null,
-          drawn_numbers: [],
-          round_winners: []
+
+/* ===========================
+   REALTIME PLAYER CHECK
+=========================== */
+db.channel("players_watch")
+    .on("postgres_changes", { event: "*", schema: "public", table: "game_entries" },
+        async () => {
+
+            let { data } = await db
+                .from("game_entries")
+                .select("*")
+                .eq("entry", entryAmount)
+                .eq("status", "waiting");
+
+            playerCount = data.length;
+
+            if (playerCount >= 2 && !countdownStarted) {
+                countdownStarted = true;
+                startCountdown();
+            }
         })
-        .eq('room','public');
-    }, 12000);
+    .subscribe();
 
-  }catch(err){
-    console.error('finishRound error', err);
-  }
+
+/* ===========================
+   COUNTDOWN + DRAW
+=========================== */
+function startCountdown() {
+    let box = document.getElementById("countdown");
+    box.style.display = "block";
+
+    let t = 10;
+
+    let interval = setInterval(() => {
+        box.innerText = t + "s";
+        t--;
+
+        if (t < 0) {
+            clearInterval(interval);
+            revealResults();
+        }
+    }, 1000);
 }
 
-/* -------------------------
-   Modal: show results
-----------------------------*/
-function showResultsModal(gs){
-  const modal = document.getElementById('modalBackdrop');
-  const drawnEl = document.getElementById('drawnNumbers');
-  const winnersBox = document.getElementById('winnersBox');
-  drawnEl.innerText = (gs.drawn_numbers || []).join(', ') || '—';
 
-  winnersBox.innerHTML = '';
-  const winners = gs.round_winners || [];
-  if(winners.length === 0){
-    winnersBox.innerHTML = `<div class="winner-row">No winners this round</div>`;
-  } else {
-    winners.forEach(w => {
-      winnersBox.innerHTML += `<div class="winner-row">${w.username} — matches: ${w.matches ?? (w.matched || 0)}</div>`;
+/* ===========================
+   REVEAL RESULTS
+=========================== */
+async function revealResults() {
+    document.getElementById("waitingBox").style.display = "none";
+
+    // generate draw
+    let draw = [];
+    while (draw.length < 20) {
+        let n = Math.floor(Math.random() * 100) + 1;
+        if (!draw.includes(n)) draw.push(n);
+    }
+
+    // mark hits
+    let hits = selected.filter(n => draw.includes(n));
+    hits.forEach(n => {
+        let box = [...document.querySelectorAll(".num")]
+            .find(x => Number(x.innerText) === n);
+        box.classList.add("hit");
     });
-  }
 
-  modal.style.display = 'flex';
+    // reward
+    let reward = 0;
+    if (hits.length === 3) reward = 10;
+    if (hits.length === 4) reward = 20;
+    if (hits.length === 5) reward = 50;
+
+    if (reward > 0) {
+        await db.rpc("add_wallet", { user: username, amount: reward });
+        loadWallet();
+    }
+
+    document.getElementById("results").innerHTML = `
+        Drawn: ${draw.join(", ")}<br>
+        Hits: <b>${hits.length}</b><br>
+        Reward: <b>${reward} coins</b>
+    `;
+
+    // Clear room
+    await db.from("game_entries").delete().eq("entry", entryAmount);
 }
-
-function closeModal(){
-  document.getElementById('modalBackdrop').style.display = 'none';
-}
-
-/* -------------------------
-   Initial load
-----------------------------*/
-refreshUI();
-
 </script>
+
 </body>
 </html>
