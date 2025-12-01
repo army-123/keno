@@ -16,7 +16,11 @@
     .num { padding:15px; background:#111; border:2px solid #444; border-radius:8px; cursor:pointer; }
     .num:hover { background:#222; }
     .selected { background:#ffcc00 !important; color:#000 !important; border-color:#ffea00 !important; font-weight:bold; }
-    #submitNumbersBtn { padding:15px 40px; background:#ffcc00; color:#000; border-radius:10px; border:none; margin-top:25px; font-size:20px; cursor:pointer; display:none; }
+    #submitNumbersBtn {
+      padding:15px 40px; background:#ffcc00; color:#000;
+      border-radius:10px; border:none; margin-top:25px;
+      font-size:20px; cursor:pointer; display:none;
+    }
   </style>
 </head>
 <body>
@@ -57,7 +61,7 @@ let selectedNumbers = [];
 let countdownStarted = false;
 let countdownInterval = null;
 
-/* This flag is local to this client: true after this user submitted picks */
+/* LOCAL FLAG: this user submitted */
 let hasSubmittedLocal = false;
 
 /* ---------- GRID ---------- */
@@ -90,7 +94,7 @@ async function joinRoom(amount){
   document.getElementById("gameScreen").style.display = "block";
   createGrid();
 
-  // insert player record (not ready yet)
+  // Insert player
   await db.from("players").insert({
     username,
     room: chosenRoom,
@@ -98,16 +102,15 @@ async function joinRoom(amount){
     picks: []
   });
 
-  // subscribe to changes
+  // Subscribe to changes
   db.channel("players-"+chosenRoom)
-    .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () => checkRoom() )
+    .on("postgres_changes", { event: "*", schema:"public", table:"players" }, () => checkRoom() )
     .subscribe();
 
-  // initial check
   checkRoom();
 }
 
-/* ---------- CHECK ROOM (called on any players table change) ---------- */
+/* ---------- CHECK ROOM ---------- */
 async function checkRoom(){
   if (!chosenRoom) return;
 
@@ -120,60 +123,47 @@ async function checkRoom(){
   const readyCount = players.filter(p => p.ready).length;
   const wait = document.getElementById("waitAnim");
 
-  // 1) Do NOT show waiting just because someone joined.
-  // Show waiting only when local user has submitted or the countdown is running.
+  // Do NOT show waiting on join
   if (countdownStarted || hasSubmittedLocal) {
     wait.style.display = "block";
   } else {
     wait.style.display = "none";
   }
 
-  // 2) If at least two players and ANY player has submitted (readyCount>=1),
-  //    then attempt to start countdown for all clients (this makes it reliable).
+  // If at least 2 players + someone submitted -> try starting countdown
   if (count >= 2 && readyCount >= 1) {
     startCountdownIfReady(players);
     return;
   }
-
-  // 3) If fewer than 2 players -> nothing else to do
-  if (count < 2) {
-    // keep waiting hidden unless local user already submitted (handled above)
-    return;
-  }
 }
 
-/* ---------- WHEN THIS USER SUBMITS ---------- */
+/* ---------- SUBMIT ---------- */
 async function submitNumbers(){
   if (selectedNumbers.length !== 5) {
     alert("Select 5 numbers!");
     return;
   }
 
-  // update DB: set picks + ready true
   await db.from("players")
     .update({ picks: selectedNumbers, ready: true })
     .eq("username", username)
     .eq("room", chosenRoom);
 
-  // mark locally
   hasSubmittedLocal = true;
 
-  // show waiting locally right away
   const wait = document.getElementById("waitAnim");
   wait.style.display = "block";
   wait.innerHTML = "✨ Submitted — waiting for opponent… ✨";
 
-  // hide submit button
   document.getElementById("submitNumbersBtn").style.display = "none";
 
-  // ask to start countdown if conditions met
-  startCountdownIfReady();
+  // Force countdown check
+  setTimeout(startCountdownIfReady, 300);
 }
 
-/* ---------- Decide to start countdown (called after submit or on room changes) ---------- */
-async function startCountdownIfReady(latestPlayersData){
-  // get players if not passed
-  let players = latestPlayersData;
+/* ---------- START COUNTDOWN IF CONDITIONS MET ---------- */
+async function startCountdownIfReady(playersData){
+  let players = playersData;
   if (!players) {
     const q = await db.from("players").select("*").eq("room", chosenRoom);
     players = q.data || [];
@@ -181,25 +171,24 @@ async function startCountdownIfReady(latestPlayersData){
 
   const count = players.length;
   const readyCount = players.filter(p => p.ready).length;
-  const wait = document.getElementById("waitAnim");
 
-  // Only start when at least 2 players are present
+  // Need at least 2 players
   if (count < 2) return;
 
-  // If both (or all) players already submitted -> reveal immediately
+  // If everyone ready -> instant reveal
   if (readyCount >= count && readyCount > 0) {
-    // ensure any running interval cleared
     if (countdownInterval) clearInterval(countdownInterval);
     countdownStarted = false;
     revealResults();
     return;
   }
 
-  // If at least one player submitted and countdown hasn't started -> start it
+  // Start countdown if one or more submitted
   if (readyCount >= 1 && !countdownStarted) {
     countdownStarted = true;
-    // show countdown globally
+    const wait = document.getElementById("waitAnim");
     wait.style.display = "block";
+    wait.innerHTML = "⏳ Countdown: <b>60</b> seconds";
     startCountdown();
   }
 }
@@ -208,21 +197,21 @@ async function startCountdownIfReady(latestPlayersData){
 function startCountdown(){
   let timeLeft = 60;
   const wait = document.getElementById("waitAnim");
-  wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
 
-  // If an existing interval exists, clear it (safety)
   if (countdownInterval) clearInterval(countdownInterval);
 
   countdownInterval = setInterval(async () => {
     timeLeft--;
     wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
 
-    // fetch current ready counts
-    const { data: players } = await db.from("players").select("ready").eq("room", chosenRoom);
-    const readyCount = (players || []).filter(p => p.ready).length;
-    const totalCount = (players || []).length;
+    const { data: players } = await db
+      .from("players")
+      .select("ready")
+      .eq("room", chosenRoom);
 
-    // if everyone who is in room submitted -> reveal now
+    const readyCount = players.filter(p => p.ready).length;
+    const totalCount = players.length;
+
     if (readyCount >= totalCount && readyCount > 0) {
       clearInterval(countdownInterval);
       countdownStarted = false;
@@ -230,7 +219,6 @@ function startCountdown(){
       return;
     }
 
-    // if someone else submitted (readyCount >= 2) -> reveal
     if (readyCount >= 2) {
       clearInterval(countdownInterval);
       countdownStarted = false;
@@ -238,36 +226,39 @@ function startCountdown(){
       return;
     }
 
-    // timer finished -> reveal anyway
     if (timeLeft <= 0) {
       clearInterval(countdownInterval);
       countdownStarted = false;
       revealResults();
       return;
     }
+
   }, 1000);
 }
 
-/* ---------- REVEAL RESULTS ---------- */
+/* ---------- RESULTS ---------- */
 async function revealResults(){
   const wait = document.getElementById("waitAnim");
   wait.innerHTML = "🎰 Drawing results...";
 
-  const { data: players } = await db.from("players").select("*").eq("room", chosenRoom);
+  const { data: players } = await db
+    .from("players")
+    .select("*")
+    .eq("room", chosenRoom);
 
-  // Generate 20 winning numbers
   const winning = [];
   while (winning.length < 20) {
-    const n = Math.floor(Math.random()*100) + 1;
+    const n = Math.floor(Math.random()*100)+1;
     if (!winning.includes(n)) winning.push(n);
   }
 
-  wait.innerHTML = `<b>Winning numbers:</b><br>${winning.join(", ")}`;
+  wait.innerHTML =
+    `<b>Winning numbers:</b><br>${winning.join(", ")}`;
 
-  const results = (players || []).map(p => ({
+  const results = players.map(p => ({
     username: p.username,
-    picks: p.picks || [],
-    hits: (p.picks || []).filter(x => winning.includes(x)).length
+    picks: p.picks,
+    hits: p.picks.filter(x => winning.includes(x)).length
   }));
 
   const maxHits = Math.max(...results.map(r => r.hits));
@@ -275,16 +266,13 @@ async function revealResults(){
 
   wait.innerHTML += `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b>`;
 
-  // After showing results, cleanup this room (so new joiners are a new round)
-  // NOTE: keep a small delay so players can see results
   setTimeout(async () => {
     await db.from("players").delete().eq("room", chosenRoom);
-    // reset local state
     selectedNumbers = [];
     hasSubmittedLocal = false;
     countdownStarted = false;
     if (countdownInterval) clearInterval(countdownInterval);
-    // show join screen again
+
     document.getElementById("gameScreen").style.display = "none";
     document.getElementById("joinScreen").style.display = "block";
     document.getElementById("waitAnim").style.display = "none";
