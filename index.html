@@ -29,6 +29,21 @@
         font-weight: bold;
     }
 
+    /* JOIN BUTTONS */
+    .joinButton {
+        display: block;
+        margin: 12px auto;
+        padding: 14px 25px;
+        width: 240px;
+        font-size: 22px;
+        background: #ffcc00;
+        color: black;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
     /* WAITING TEXT GLOW */
     #waitingBox {
         margin-top: 15px;
@@ -47,7 +62,7 @@
 
     /* NUMBER GRID */
     #numberGrid {
-        display: grid;
+        display: none;
         grid-template-columns: repeat(10, 1fr);
         gap: 8px;
         padding: 20px;
@@ -62,7 +77,6 @@
         border-radius: 6px;
         cursor: pointer;
         font-weight: bold;
-        transition: 0.2s;
     }
 
     .num.selected {
@@ -77,7 +91,8 @@
         box-shadow: 0 0 10px #00ff88;
     }
 
-    button {
+    #submitBtn {
+        display: none;
         padding: 12px 25px;
         font-size: 20px;
         margin: 10px;
@@ -115,8 +130,14 @@
 <h1>Ziii Game</h1>
 <div id="walletBox">Wallet: Loading...</div>
 
-<div id="waitingBox">✨ Waiting for players… ✨</div>
+<!-- JOIN BUTTONS -->
+<div id="joinContainer">
+    <button class="joinButton" onclick="selectEntry(10)">Join With 10</button>
+    <button class="joinButton" onclick="selectEntry(20)">Join With 20</button>
+    <button class="joinButton" onclick="selectEntry(50)">Join With 50</button>
+</div>
 
+<div id="waitingBox">✨ Waiting for players… ✨</div>
 <div id="countdown"></div>
 
 <div id="numberGrid"></div>
@@ -136,13 +157,13 @@ const db = supabase.createClient(
 );
 
 let username = localStorage.getItem("ziii_user");
-let entryAmount = Number(localStorage.getItem("ziii_amount"));
-
+let entryAmount = null;
 let playerCount = 0;
 let countdownStarted = false;
 
+
 /* ===========================
-   WALLET DISPLAY
+   LOAD WALLET
 =========================== */
 async function loadWallet() {
     let { data } = await db
@@ -158,27 +179,49 @@ loadWallet();
 
 
 /* ===========================
-   NUMBER PICKING
+   USER SELECTS ENTRY
+=========================== */
+function selectEntry(amount) {
+    entryAmount = amount;
+    localStorage.setItem("ziii_amount", amount);
+
+    // Hide join buttons
+    document.getElementById("joinContainer").style.display = "none";
+
+    // Show number grid + submit button
+    document.getElementById("numberGrid").style.display = "grid";
+    document.getElementById("submitBtn").style.display = "block";
+
+    buildGrid();
+}
+
+
+/* ===========================
+   NUMBER GRID
 =========================== */
 let selected = [];
-const grid = document.getElementById("numberGrid");
 
-for (let i = 1; i <= 100; i++) {
-    const div = document.createElement("div");
-    div.className = "num";
-    div.innerText = i;
+function buildGrid() {
+    const grid = document.getElementById("numberGrid");
+    grid.innerHTML = "";
 
-    div.onclick = () => {
-        if (selected.includes(i)) {
-            selected = selected.filter(n => n !== i);
-            div.classList.remove("selected");
-        } else if (selected.length < 5) {
-            selected.push(i);
-            div.classList.add("selected");
-        }
-    };
+    for (let i = 1; i <= 100; i++) {
+        const div = document.createElement("div");
+        div.className = "num";
+        div.innerText = i;
 
-    grid.appendChild(div);
+        div.onclick = () => {
+            if (selected.includes(i)) {
+                selected = selected.filter(n => n !== i);
+                div.classList.remove("selected");
+            } else if (selected.length < 5) {
+                selected.push(i);
+                div.classList.add("selected");
+            }
+        };
+
+        grid.appendChild(div);
+    }
 }
 
 
@@ -186,10 +229,7 @@ for (let i = 1; i <= 100; i++) {
    SUBMIT NUMBERS
 =========================== */
 document.getElementById("submitBtn").onclick = async () => {
-    if (selected.length !== 5) {
-        alert("Select 5 numbers!");
-        return;
-    }
+    if (selected.length !== 5) return alert("Select 5 numbers!");
 
     document.getElementById("waitingBox").style.display = "block";
 
@@ -206,9 +246,10 @@ document.getElementById("submitBtn").onclick = async () => {
    REALTIME PLAYER CHECK
 =========================== */
 db.channel("players_watch")
-    .on("postgres_changes", { event: "*", schema: "public", table: "game_entries" },
+    .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "game_entries" },
         async () => {
-
             let { data } = await db
                 .from("game_entries")
                 .select("*")
@@ -221,12 +262,13 @@ db.channel("players_watch")
                 countdownStarted = true;
                 startCountdown();
             }
-        })
+        }
+    )
     .subscribe();
 
 
 /* ===========================
-   COUNTDOWN + DRAW
+   COUNTDOWN
 =========================== */
 function startCountdown() {
     let box = document.getElementById("countdown");
@@ -252,29 +294,30 @@ function startCountdown() {
 async function revealResults() {
     document.getElementById("waitingBox").style.display = "none";
 
-    // generate draw
     let draw = [];
     while (draw.length < 20) {
         let n = Math.floor(Math.random() * 100) + 1;
         if (!draw.includes(n)) draw.push(n);
     }
 
-    // mark hits
     let hits = selected.filter(n => draw.includes(n));
+
     hits.forEach(n => {
         let box = [...document.querySelectorAll(".num")]
             .find(x => Number(x.innerText) === n);
-        box.classList.add("hit");
+        box?.classList.add("hit");
     });
 
-    // reward
     let reward = 0;
     if (hits.length === 3) reward = 10;
     if (hits.length === 4) reward = 20;
     if (hits.length === 5) reward = 50;
 
     if (reward > 0) {
-        await db.rpc("add_wallet", { user: username, amount: reward });
+        await db.rpc("add_wallet", {
+            user: username,
+            amount: reward
+        });
         loadWallet();
     }
 
@@ -284,7 +327,6 @@ async function revealResults() {
         Reward: <b>${reward} coins</b>
     `;
 
-    // Clear room
     await db.from("game_entries").delete().eq("entry", entryAmount);
 }
 </script>
