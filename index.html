@@ -26,35 +26,49 @@
       text-shadow: 0 0 10px #ffe066;
     }
 
+    /* Number grid */
     #numberGrid {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
-      gap: 6px;
-      padding: 15px;
-      max-width: 95%;
+      gap: 8px;
+      padding: 20px;
+      max-width: 600px;
       margin: 0 auto;
     }
 
+    /* Number buttons */
     .num {
-      padding: 10px;
-      background: #1f1f1f;
-      border-radius: 6px;
+      padding: 12px;
+      background: #222831;
+      border: 2px solid #393e46;
+      color: #eeeeee;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
-      transition: 0.15s;
+      transition: 0.2s;
+      font-size: 16px;
+    }
+
+    .num:hover {
+      background: #00adb5;
+      border-color: #00f2ff;
     }
 
     .num.selected {
-      background: #0077ff;
-      box-shadow: 0 0 10px #00a2ff;
+      background: #ffd369;
+      border-color: #ffe7a0;
+      color: black;
+      box-shadow: 0 0 10px #ffea80;
     }
 
     .num.hit {
       background: #00ff44;
-      box-shadow: 0 0 10px #00ff88;
+      border-color: #90ffb2;
       color: black;
+      box-shadow: 0 0 10px #00ff88;
     }
 
+    /* Buttons */
     button {
       padding: 12px 22px;
       margin: 10px;
@@ -88,7 +102,7 @@
       justify-content: space-between;
     }
 
-    /* Confetti */
+    /* Confetti animation */
     .confetti {
       width: 10px;
       height: 10px;
@@ -109,7 +123,7 @@
 <body>
 
   <h1>Zii Game 🎯</h1>
-  <p>Pick 1–5 numbers, then press **Play**</p>
+  <p>Pick 1–5 numbers, then press <b>Play</b></p>
 
   <div id="numberGrid"></div>
 
@@ -138,7 +152,7 @@
     );
 
     /* =========================
-       GRID GENERATION
+       GENERATE NUMBER GRID
     ========================= */
     let selected = [];
     const maxPick = 5;
