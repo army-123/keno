@@ -27,10 +27,6 @@
       text-shadow: 0 0 10px #0af7ff;
     }
 
-    .join-box {
-      margin-top: 40px;
-    }
-
     .join-btn {
       padding: 15px 30px;
       margin: 10px;
@@ -43,9 +39,23 @@
       transition: 0.2s;
     }
 
-    .join-btn:hover {
-      background: #ffdd33;
-      transform: scale(1.05);
+    .selected {
+      background: #ffcc00 !important;
+      color: #000 !important;
+      border-color: #ffea00 !important;
+      font-weight: bold;
+    }
+
+    #submitNumbersBtn {
+      padding: 15px 40px;
+      background: #ffcc00;
+      color: #000;
+      border-radius: 10px;
+      border: none;
+      margin-top: 25px;
+      font-size: 20px;
+      cursor: pointer;
+      display: none;
     }
 
     .waiting {
@@ -70,51 +80,6 @@
       margin-left: auto;
       margin-right: auto;
     }
-
-    .num {
-      padding: 15px;
-      background: #111;
-      border: 2px solid #444;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .num:hover {
-      background: #222;
-    }
-
-    .selected {
-      background: #ffcc00 !important;
-      color: #000 !important;
-      border-color: #ffea00 !important;
-      font-weight: bold;
-    }
-
-    #submitNumbersBtn {
-      padding: 15px 40px;
-      background: #ffcc00;
-      color: #000;
-      border-radius: 10px;
-      border: none;
-      margin-top: 25px;
-      font-size: 20px;
-      cursor: pointer;
-      display: none;
-    }
-
-    .countdown {
-      margin-top: 20px;
-      font-size: 32px;
-      color: #00ffea;
-      text-shadow: 0 0 10px #00fff2;
-    }
-
-    .results-box {
-      margin-top: 30px;
-      font-size: 24px;
-      color: #ffdd00;
-    }
   </style>
 </head>
 
@@ -123,134 +88,86 @@
 <h1>Ziii Game</h1>
 <div class="wallet">Wallet: <span id="walletAmount">0</span> coins</div>
 
-<!-- JOIN SCREEN -->
-<div id="joinScreen" class="join-box">
+<div id="joinScreen">
   <button class="join-btn" onclick="joinRoom(10)">Join with 10</button>
   <button class="join-btn" onclick="joinRoom(20)">Join with 20</button>
   <button class="join-btn" onclick="joinRoom(50)">Join with 50</button>
-
-  <div class="waiting" id="waitAnim" style="display:none;">
-     ✨ Waiting for players… ✨
-  </div>
 </div>
 
-<!-- GAME SCREEN -->
 <div id="gameScreen" style="display:none;">
-  <div class="waiting" id="statusText">Waiting…</div>
-
-  <div class="countdown" id="countdownBox" style="display:none;">
-    Countdown: <span id="countdownNum">60</span>s
-  </div>
-
+  <div class="waiting" id="waitAnim" style="display:none;"></div>
   <div class="grid" id="numbersGrid"></div>
-
   <button id="submitNumbersBtn" onclick="submitNumbers()">Submit Numbers</button>
-
-  <div class="results-box" id="resultsBox" style="display:none;"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-const SUPABASE_URL = "https://vdhuexwgplylprgpddoq.supabase.co";
-const SUPABASE_KEY =
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc";
+/* INIT */
+const db = supabase.createClient(
+  "https://vdhuexwgplylprgpddoq.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let username = localStorage.getItem("ziii_user");
+if (!username) {
+  username = "user_" + Math.floor(Math.random() * 100000);
+  localStorage.setItem("ziii_user", username);
+}
 
-let username = "user_" + Math.floor(Math.random() * 100000);
 let chosenRoom = null;
 let selectedNumbers = [];
-let wallet = 200;
-let countdownStarted = false;
 let countdownInterval = null;
-
-document.getElementById("walletAmount").innerText = wallet;
+let countdownStarted = false;
 
 /* GRID */
 function createGrid() {
   const grid = document.getElementById("numbersGrid");
   grid.innerHTML = "";
-
   for (let n = 1; n <= 100; n++) {
-    let btn = document.createElement("div");
-    btn.className = "num";
-    btn.innerText = n;
+    const cell = document.createElement("div");
+    cell.className = "num";
+    cell.innerText = n;
 
-    btn.onclick = () => {
+    cell.onclick = () => {
       if (selectedNumbers.includes(n)) {
         selectedNumbers = selectedNumbers.filter(x => x !== n);
-        btn.classList.remove("selected");
-      } else {
-        if (selectedNumbers.length < 5) {
-          selectedNumbers.push(n);
-          btn.classList.add("selected");
-        }
+        cell.classList.remove("selected");
+      } else if (selectedNumbers.length < 5) {
+        selectedNumbers.push(n);
+        cell.classList.add("selected");
       }
-
       document.getElementById("submitNumbersBtn").style.display =
         selectedNumbers.length === 5 ? "block" : "none";
     };
-
-    grid.appendChild(btn);
+    grid.appendChild(cell);
   }
 }
-createGrid();
 
-/* JOIN */
+/* JOIN ROOM */
 async function joinRoom(amount) {
   chosenRoom = amount;
 
   document.getElementById("joinScreen").style.display = "none";
   document.getElementById("gameScreen").style.display = "block";
 
+  createGrid();
+
   await db.from("players").insert({
-    username,
-    room: chosenRoom,
-    ready: false,
-    picks: [],
-    wallet
+    username, room: chosenRoom, ready: false, picks: []
   });
-
-  listenForPlayers();
 }
 
-/* LISTENER */
-async function listenForPlayers() {
-  db.channel("players-room-" + chosenRoom)
-    .on("postgres_changes",
-      { event: "*", schema: "public", table: "players" },
-      () => checkRoom())
-    .subscribe();
-
-  checkRoom();
-}
-
-/* FIXED: CHECK ROOM */
-async function checkRoom() {
-  const { data: players } = await db
-    .from("players")
-    .select("*")
-    .eq("room", chosenRoom);
-
-  // DO NOT START COUNTDOWN HERE ANYMORE
-  if (players.length < 2) return;
-}
-
-/* FIXED: SUBMIT NUMBERS */
+/* FIXED SUBMIT NUMBERS */
 async function submitNumbers() {
-  await db
-    .from("players")
-    .update({
-      picks: selectedNumbers,
-      ready: true
-    })
+  document.getElementById("waitAnim").style.display = "block";
+  document.getElementById("waitAnim").innerHTML = "✨ Waiting for opponent… ✨";
+
+  await db.from("players")
+    .update({ picks: selectedNumbers, ready: true })
     .eq("username", username);
 
   document.getElementById("submitNumbersBtn").style.display = "none";
-
-  document.getElementById("waitAnim").style.display = "block";
-  document.getElementById("waitAnim").innerHTML = "✨ Waiting for opponent… ✨";
 
   if (!countdownStarted) {
     countdownStarted = true;
@@ -258,38 +175,35 @@ async function submitNumbers() {
   }
 }
 
-/* FIXED: COUNTDOWN */
+/* FIXED COUNTDOWN */
 function startCountdown() {
-  let timeLeft = 60;
+  let time = 60;
   const wait = document.getElementById("waitAnim");
 
-  wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
-
   countdownInterval = setInterval(async () => {
-    timeLeft--;
-    wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
+    time--;
+    wait.innerHTML = `⏳ Countdown: <b>${time}</b> seconds`;
 
     const { data: players } = await db
       .from("players")
       .select("ready")
       .eq("room", chosenRoom);
 
-    const readyCount = players.filter(p => p.ready).length;
+    const submitted = players.filter(p => p.ready).length;
 
-    if (readyCount >= 2) {
+    if (submitted >= 2) {
       clearInterval(countdownInterval);
       revealResults();
-      return;
     }
 
-    if (timeLeft <= 0) {
+    if (time <= 0) {
       clearInterval(countdownInterval);
       revealResults();
     }
   }, 1000);
 }
 
-/* RESULTS */
+/* REVEAL */
 async function revealResults() {
   document.getElementById("waitAnim").innerHTML = "🎰 Drawing results...";
 
@@ -307,42 +221,18 @@ async function revealResults() {
   document.getElementById("waitAnim").innerHTML =
     `<b>Winning numbers:</b><br>${winning.join(", ")}`;
 
-  let results = players.map(p => {
-    let hits = p.picks.filter(num => winning.includes(num)).length;
-    return { username: p.username, wallet: p.wallet, hits };
-  });
+  let hitsMap = players.map(p => ({
+    username: p.username,
+    hits: p.picks.filter(n => winning.includes(n)).length
+  }));
 
-  let maxHits = Math.max(...results.map(r => r.hits));
-  let winners = results.filter(r => r.hits === maxHits);
-
-  let pot = chosenRoom * players.length;
-  let prize = Math.floor(pot / winners.length);
-
-  for (let w of winners) {
-    await db
-      .from("players")
-      .update({ wallet: w.wallet + prize })
-      .eq("username", w.username);
-
-    if (w.username === username) wallet += prize;
-  }
+  let maxHits = Math.max(...hitsMap.map(h => h.hits));
+  let winners = hitsMap.filter(h => h.hits === maxHits);
 
   document.getElementById("waitAnim").innerHTML +=
-    `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b><br>
-     Prize: ${prize} coins`;
-
-  setTimeout(resetRoom, 10000);
-}
-
-async function resetRoom() {
-  await db.from("players").delete().eq("room", chosenRoom);
-
-  selectedNumbers = [];
-  countdownStarted = false;
-
-  document.getElementById("gameScreen").style.display = "none";
-  document.getElementById("joinScreen").style.display = "block";
+    `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b>`;
 }
 </script>
+
 </body>
 </html>
