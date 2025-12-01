@@ -1,61 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Ziii Game</title>
-
   <style>
     body { background:#000; color:#fff; text-align:center; font-family:Arial; }
     h1 { font-size:42px; margin-top:25px; color:#ffea00; text-shadow:0 0 15px #ffea00; }
     .wallet { font-size:22px; margin-top:10px; color:#0af7ff; text-shadow:0 0 10px #0af7ff; }
-    .join-btn {
-      padding:15px 30px; margin:10px; background:#ffcc00; color:#000;
-      border-radius:10px; font-size:20px; cursor:pointer; border:none; transition:.2s;
-    }
+    .join-btn { padding:15px 30px; margin:10px; background:#ffcc00; color:#000; border-radius:10px; font-size:20px; cursor:pointer; border:none; transition:.2s; }
     .join-btn:hover { background:#ffdd33; transform:scale(1.05); }
     .waiting { margin-top:20px; font-size:26px; color:#ffaa00; animation:pulse 1.2s infinite; }
     @keyframes pulse { 0%{opacity:.4} 50%{opacity:1} 100%{opacity:.4} }
     .grid { margin-top:30px; display:grid; grid-template-columns:repeat(10,1fr); gap:10px; max-width:600px; margin:auto; }
     .num { padding:15px; background:#111; border:2px solid #444; border-radius:8px; cursor:pointer; }
     .num:hover { background:#222; }
-    .selected {
-      background:#ffcc00 !important; color:#000 !important; border-color:#ffea00 !important; font-weight:bold;
-    }
-    #submitNumbersBtn {
-      padding:15px 40px; background:#ffcc00; color:#000; border-radius:10px; border:none;
-      margin-top:25px; font-size:20px; cursor:pointer; display:none;
-    }
+    .selected { background:#ffcc00 !important; color:#000 !important; border-color:#ffea00 !important; font-weight:bold; }
+    #submitNumbersBtn { padding:15px 40px; background:#ffcc00; color:#000; border-radius:10px; border:none; margin-top:25px; font-size:20px; cursor:pointer; display:none; }
   </style>
 </head>
-
 <body>
 
 <h1>Ziii Game</h1>
 <div class="wallet">Wallet: <span id="walletAmount">0</span> coins</div>
 
-<!-- JOIN SCREEN -->
+<!-- JOIN -->
 <div id="joinScreen">
   <button class="join-btn" onclick="joinRoom(10)">Join with 10</button>
   <button class="join-btn" onclick="joinRoom(20)">Join with 20</button>
   <button class="join-btn" onclick="joinRoom(50)">Join with 50</button>
 </div>
 
-<!-- GAME SCREEN -->
+<!-- GAME -->
 <div id="gameScreen" style="display:none;">
-  <div class="waiting" id="waitAnim" style="display:none;">✨ Waiting for players… ✨</div>
-
+  <div class="waiting" id="waitAnim" style="display:none;">✨ Waiting… ✨</div>
   <div class="grid" id="numbersGrid"></div>
-
   <button id="submitNumbersBtn" onclick="submitNumbers()">Submit Numbers</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script>
-/* -------------------------------------------
-   INIT
---------------------------------------------- */
+/* ---------- CONFIG ---------- */
 const db = supabase.createClient(
   "https://vdhuexwgplylprgpddoq.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
@@ -72,16 +57,17 @@ let selectedNumbers = [];
 let countdownStarted = false;
 let countdownInterval = null;
 
-/* CREATE GRID */
-function createGrid() {
+/* This flag is local to this client: true after this user submitted picks */
+let hasSubmittedLocal = false;
+
+/* ---------- GRID ---------- */
+function createGrid(){
   const grid = document.getElementById("numbersGrid");
   grid.innerHTML = "";
-
-  for (let n=1; n<=100; n++) {
+  for (let n=1;n<=100;n++){
     const cell = document.createElement("div");
     cell.className = "num";
     cell.innerText = n;
-
     cell.onclick = () => {
       if (selectedNumbers.includes(n)) {
         selectedNumbers = selectedNumbers.filter(x => x!==n);
@@ -91,23 +77,20 @@ function createGrid() {
         cell.classList.add("selected");
       }
       document.getElementById("submitNumbersBtn").style.display =
-        selectedNumbers.length===5 ? "block" : "none";
+        (selectedNumbers.length === 5) ? "block" : "none";
     };
-
     grid.appendChild(cell);
   }
 }
 
-/* JOIN ROOM */
-async function joinRoom(amount) {
+/* ---------- JOIN ROOM ---------- */
+async function joinRoom(amount){
   chosenRoom = amount;
-
   document.getElementById("joinScreen").style.display = "none";
   document.getElementById("gameScreen").style.display = "block";
-
   createGrid();
 
-  // Insert player
+  // insert player record (not ready yet)
   await db.from("players").insert({
     username,
     room: chosenRoom,
@@ -115,57 +98,19 @@ async function joinRoom(amount) {
     picks: []
   });
 
-  listenForPlayers();
-}
-
-/* LISTEN FOR PLAYER CHANGES */
-function listenForPlayers() {
-  db.channel("players-" + chosenRoom)
-    .on("postgres_changes",
-      { event:"*", schema:"public", table:"players" },
-      () => checkRoom()
-    )
+  // subscribe to changes
+  db.channel("players-"+chosenRoom)
+    .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () => checkRoom() )
     .subscribe();
 
+  // initial check
   checkRoom();
 }
 
-/* ROOM CHECK — MINIMUM 2 PLAYERS REQUIRED */
-async function checkRoom() {
-  const { data: players } = await db
-    .from("players")
-    .select("*")
-    .eq("room", chosenRoom);
+/* ---------- CHECK ROOM (called on any players table change) ---------- */
+async function checkRoom(){
+  if (!chosenRoom) return;
 
-  const count = players.length;
-
-  const wait = document.getElementById("waitAnim");
-  wait.style.display = "block";
-
-  if (count < 2) {
-    wait.innerHTML = "✨ Waiting for another player… ✨";
-    return;
-  }
-
-  wait.innerHTML = "✔ Player joined! Submit your 5 numbers.";
-}
-
-/* PLAYER SUBMITS NUMBERS */
-async function submitNumbers() {
-  await db.from("players")
-    .update({ picks:selectedNumbers, ready:true })
-    .eq("username", username);
-
-  document.getElementById("submitNumbersBtn").style.display = "none";
-
-  document.getElementById("waitAnim").innerHTML =
-    "⏳ Waiting for opponent to submit…";
-
-  startCountdownIfReady();
-}
-
-/* CHECK IF COUNTDOWN SHOULD START */
-async function startCountdownIfReady() {
   const { data: players } = await db
     .from("players")
     .select("*")
@@ -173,86 +118,178 @@ async function startCountdownIfReady() {
 
   const count = players.length;
   const readyCount = players.filter(p => p.ready).length;
+  const wait = document.getElementById("waitAnim");
 
-  // Only start if at least 2 players are in the room
-  if (count < 2) return;
-
-  // Start only once
-  if (!countdownStarted) {
-    countdownStarted = true;
-    startCountdown();
+  // 1) Do NOT show waiting just because someone joined.
+  // Show waiting only when local user has submitted or the countdown is running.
+  if (countdownStarted || hasSubmittedLocal) {
+    wait.style.display = "block";
+  } else {
+    wait.style.display = "none";
   }
 
-  // If both players submitted → reveal immediately
-  if (readyCount === 2) {
-    clearInterval(countdownInterval);
-    revealResults();
+  // 2) If at least two players and ANY player has submitted (readyCount>=1),
+  //    then attempt to start countdown for all clients (this makes it reliable).
+  if (count >= 2 && readyCount >= 1) {
+    startCountdownIfReady(players);
+    return;
+  }
+
+  // 3) If fewer than 2 players -> nothing else to do
+  if (count < 2) {
+    // keep waiting hidden unless local user already submitted (handled above)
+    return;
   }
 }
 
-/* COUNTDOWN LOGIC */
-function startCountdown() {
-  let time = 60;
+/* ---------- WHEN THIS USER SUBMITS ---------- */
+async function submitNumbers(){
+  if (selectedNumbers.length !== 5) {
+    alert("Select 5 numbers!");
+    return;
+  }
+
+  // update DB: set picks + ready true
+  await db.from("players")
+    .update({ picks: selectedNumbers, ready: true })
+    .eq("username", username)
+    .eq("room", chosenRoom);
+
+  // mark locally
+  hasSubmittedLocal = true;
+
+  // show waiting locally right away
+  const wait = document.getElementById("waitAnim");
+  wait.style.display = "block";
+  wait.innerHTML = "✨ Submitted — waiting for opponent… ✨";
+
+  // hide submit button
+  document.getElementById("submitNumbersBtn").style.display = "none";
+
+  // ask to start countdown if conditions met
+  startCountdownIfReady();
+}
+
+/* ---------- Decide to start countdown (called after submit or on room changes) ---------- */
+async function startCountdownIfReady(latestPlayersData){
+  // get players if not passed
+  let players = latestPlayersData;
+  if (!players) {
+    const q = await db.from("players").select("*").eq("room", chosenRoom);
+    players = q.data || [];
+  }
+
+  const count = players.length;
+  const readyCount = players.filter(p => p.ready).length;
   const wait = document.getElementById("waitAnim");
 
+  // Only start when at least 2 players are present
+  if (count < 2) return;
+
+  // If both (or all) players already submitted -> reveal immediately
+  if (readyCount >= count && readyCount > 0) {
+    // ensure any running interval cleared
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownStarted = false;
+    revealResults();
+    return;
+  }
+
+  // If at least one player submitted and countdown hasn't started -> start it
+  if (readyCount >= 1 && !countdownStarted) {
+    countdownStarted = true;
+    // show countdown globally
+    wait.style.display = "block";
+    startCountdown();
+  }
+}
+
+/* ---------- COUNTDOWN ---------- */
+function startCountdown(){
+  let timeLeft = 60;
+  const wait = document.getElementById("waitAnim");
+  wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
+
+  // If an existing interval exists, clear it (safety)
+  if (countdownInterval) clearInterval(countdownInterval);
+
   countdownInterval = setInterval(async () => {
-    time--;
-    wait.innerHTML = `⏳ Countdown: <b>${time}</b> seconds`;
+    timeLeft--;
+    wait.innerHTML = `⏳ Countdown: <b>${timeLeft}</b> seconds`;
 
-    // Check if both ready
-    const { data: players } = await db
-      .from("players")
-      .select("ready")
-      .eq("room", chosenRoom);
+    // fetch current ready counts
+    const { data: players } = await db.from("players").select("ready").eq("room", chosenRoom);
+    const readyCount = (players || []).filter(p => p.ready).length;
+    const totalCount = (players || []).length;
 
-    const readyCount = players.filter(p => p.ready).length;
-
-    if (readyCount === 2) {
+    // if everyone who is in room submitted -> reveal now
+    if (readyCount >= totalCount && readyCount > 0) {
       clearInterval(countdownInterval);
+      countdownStarted = false;
       revealResults();
       return;
     }
 
-    if (time <= 0) {
+    // if someone else submitted (readyCount >= 2) -> reveal
+    if (readyCount >= 2) {
       clearInterval(countdownInterval);
+      countdownStarted = false;
       revealResults();
+      return;
     }
 
+    // timer finished -> reveal anyway
+    if (timeLeft <= 0) {
+      clearInterval(countdownInterval);
+      countdownStarted = false;
+      revealResults();
+      return;
+    }
   }, 1000);
 }
 
-/* SHOW RESULTS */
-async function revealResults() {
+/* ---------- REVEAL RESULTS ---------- */
+async function revealResults(){
   const wait = document.getElementById("waitAnim");
   wait.innerHTML = "🎰 Drawing results...";
 
-  const { data: players } = await db
-    .from("players")
-    .select("*")
-    .eq("room", chosenRoom);
+  const { data: players } = await db.from("players").select("*").eq("room", chosenRoom);
 
-  // Generate 20 numbers
+  // Generate 20 winning numbers
   const winning = [];
   while (winning.length < 20) {
-    let n = Math.floor(Math.random()*100)+1;
+    const n = Math.floor(Math.random()*100) + 1;
     if (!winning.includes(n)) winning.push(n);
   }
 
-  wait.innerHTML =
-    `<b>Winning numbers:</b><br>${winning.join(", ")}`;
+  wait.innerHTML = `<b>Winning numbers:</b><br>${winning.join(", ")}`;
 
-  let hits = players.map(p => ({
+  const results = (players || []).map(p => ({
     username: p.username,
-    hits: p.picks.filter(n => winning.includes(n)).length
+    picks: p.picks || [],
+    hits: (p.picks || []).filter(x => winning.includes(x)).length
   }));
 
-  let max = Math.max(...hits.map(h => h.hits));
-  let winners = hits.filter(h => h.hits === max);
+  const maxHits = Math.max(...results.map(r => r.hits));
+  const winners = results.filter(r => r.hits === maxHits);
 
-  wait.innerHTML +=
-    `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b>`;
+  wait.innerHTML += `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b>`;
+
+  // After showing results, cleanup this room (so new joiners are a new round)
+  // NOTE: keep a small delay so players can see results
+  setTimeout(async () => {
+    await db.from("players").delete().eq("room", chosenRoom);
+    // reset local state
+    selectedNumbers = [];
+    hasSubmittedLocal = false;
+    countdownStarted = false;
+    if (countdownInterval) clearInterval(countdownInterval);
+    // show join screen again
+    document.getElementById("gameScreen").style.display = "none";
+    document.getElementById("joinScreen").style.display = "block";
+    document.getElementById("waitAnim").style.display = "none";
+  }, 8000);
 }
 </script>
-
 </body>
 </html>
