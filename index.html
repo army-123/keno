@@ -6,79 +6,25 @@
   <title>Ziii Game</title>
 
   <style>
-    body {
-      background: #000;
-      color: #fff;
-      text-align: center;
-      font-family: Arial, sans-serif;
-    }
-
-    h1 {
-      font-size: 42px;
-      margin-top: 25px;
-      color: #ffea00;
-      text-shadow: 0 0 15px #ffea00;
-    }
-
-    .wallet {
-      font-size: 22px;
-      margin-top: 10px;
-      color: #0af7ff;
-      text-shadow: 0 0 10px #0af7ff;
-    }
-
+    body { background:#000; color:#fff; text-align:center; font-family:Arial; }
+    h1 { font-size:42px; margin-top:25px; color:#ffea00; text-shadow:0 0 15px #ffea00; }
+    .wallet { font-size:22px; margin-top:10px; color:#0af7ff; text-shadow:0 0 10px #0af7ff; }
     .join-btn {
-      padding: 15px 30px;
-      margin: 10px;
-      background: #ffcc00;
-      color: #000;
-      border-radius: 10px;
-      font-size: 20px;
-      cursor: pointer;
-      border: none;
-      transition: 0.2s;
+      padding:15px 30px; margin:10px; background:#ffcc00; color:#000;
+      border-radius:10px; font-size:20px; cursor:pointer; border:none; transition:.2s;
     }
-
+    .join-btn:hover { background:#ffdd33; transform:scale(1.05); }
+    .waiting { margin-top:20px; font-size:26px; color:#ffaa00; animation:pulse 1.2s infinite; }
+    @keyframes pulse { 0%{opacity:.4} 50%{opacity:1} 100%{opacity:.4} }
+    .grid { margin-top:30px; display:grid; grid-template-columns:repeat(10,1fr); gap:10px; max-width:600px; margin:auto; }
+    .num { padding:15px; background:#111; border:2px solid #444; border-radius:8px; cursor:pointer; }
+    .num:hover { background:#222; }
     .selected {
-      background: #ffcc00 !important;
-      color: #000 !important;
-      border-color: #ffea00 !important;
-      font-weight: bold;
+      background:#ffcc00 !important; color:#000 !important; border-color:#ffea00 !important; font-weight:bold;
     }
-
     #submitNumbersBtn {
-      padding: 15px 40px;
-      background: #ffcc00;
-      color: #000;
-      border-radius: 10px;
-      border: none;
-      margin-top: 25px;
-      font-size: 20px;
-      cursor: pointer;
-      display: none;
-    }
-
-    .waiting {
-      margin-top: 20px;
-      font-size: 26px;
-      color: #ffaa00;
-      animation: pulse 1.2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 0.4; }
-      50% { opacity: 1; }
-      100% { opacity: 0.4; }
-    }
-
-    .grid {
-      margin-top: 30px;
-      display: grid;
-      grid-template-columns: repeat(10, 1fr);
-      gap: 10px;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
+      padding:15px 40px; background:#ffcc00; color:#000; border-radius:10px; border:none;
+      margin-top:25px; font-size:20px; cursor:pointer; display:none;
     }
   </style>
 </head>
@@ -88,22 +34,28 @@
 <h1>Ziii Game</h1>
 <div class="wallet">Wallet: <span id="walletAmount">0</span> coins</div>
 
+<!-- JOIN SCREEN -->
 <div id="joinScreen">
   <button class="join-btn" onclick="joinRoom(10)">Join with 10</button>
   <button class="join-btn" onclick="joinRoom(20)">Join with 20</button>
   <button class="join-btn" onclick="joinRoom(50)">Join with 50</button>
 </div>
 
+<!-- GAME SCREEN -->
 <div id="gameScreen" style="display:none;">
-  <div class="waiting" id="waitAnim" style="display:none;"></div>
+  <div class="waiting" id="waitAnim" style="display:none;">✨ Waiting for players… ✨</div>
+
   <div class="grid" id="numbersGrid"></div>
+
   <button id="submitNumbersBtn" onclick="submitNumbers()">Submit Numbers</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-/* INIT */
+/* -------------------------------------------
+   INIT
+--------------------------------------------- */
 const db = supabase.createClient(
   "https://vdhuexwgplylprgpddoq.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
@@ -111,35 +63,37 @@ const db = supabase.createClient(
 
 let username = localStorage.getItem("ziii_user");
 if (!username) {
-  username = "user_" + Math.floor(Math.random() * 100000);
+  username = "user_" + Math.floor(Math.random()*100000);
   localStorage.setItem("ziii_user", username);
 }
 
 let chosenRoom = null;
 let selectedNumbers = [];
-let countdownInterval = null;
 let countdownStarted = false;
+let countdownInterval = null;
 
-/* GRID */
+/* CREATE GRID */
 function createGrid() {
   const grid = document.getElementById("numbersGrid");
   grid.innerHTML = "";
-  for (let n = 1; n <= 100; n++) {
+
+  for (let n=1; n<=100; n++) {
     const cell = document.createElement("div");
     cell.className = "num";
     cell.innerText = n;
 
     cell.onclick = () => {
       if (selectedNumbers.includes(n)) {
-        selectedNumbers = selectedNumbers.filter(x => x !== n);
+        selectedNumbers = selectedNumbers.filter(x => x!==n);
         cell.classList.remove("selected");
       } else if (selectedNumbers.length < 5) {
         selectedNumbers.push(n);
         cell.classList.add("selected");
       }
       document.getElementById("submitNumbersBtn").style.display =
-        selectedNumbers.length === 5 ? "block" : "none";
+        selectedNumbers.length===5 ? "block" : "none";
     };
+
     grid.appendChild(cell);
   }
 }
@@ -153,29 +107,90 @@ async function joinRoom(amount) {
 
   createGrid();
 
+  // Insert player
   await db.from("players").insert({
-    username, room: chosenRoom, ready: false, picks: []
+    username,
+    room: chosenRoom,
+    ready: false,
+    picks: []
   });
+
+  listenForPlayers();
 }
 
-/* FIXED SUBMIT NUMBERS */
-async function submitNumbers() {
-  document.getElementById("waitAnim").style.display = "block";
-  document.getElementById("waitAnim").innerHTML = "✨ Waiting for opponent… ✨";
+/* LISTEN FOR PLAYER CHANGES */
+function listenForPlayers() {
+  db.channel("players-" + chosenRoom)
+    .on("postgres_changes",
+      { event:"*", schema:"public", table:"players" },
+      () => checkRoom()
+    )
+    .subscribe();
 
+  checkRoom();
+}
+
+/* ROOM CHECK — MINIMUM 2 PLAYERS REQUIRED */
+async function checkRoom() {
+  const { data: players } = await db
+    .from("players")
+    .select("*")
+    .eq("room", chosenRoom);
+
+  const count = players.length;
+
+  const wait = document.getElementById("waitAnim");
+  wait.style.display = "block";
+
+  if (count < 2) {
+    wait.innerHTML = "✨ Waiting for another player… ✨";
+    return;
+  }
+
+  wait.innerHTML = "✔ Player joined! Submit your 5 numbers.";
+}
+
+/* PLAYER SUBMITS NUMBERS */
+async function submitNumbers() {
   await db.from("players")
-    .update({ picks: selectedNumbers, ready: true })
+    .update({ picks:selectedNumbers, ready:true })
     .eq("username", username);
 
   document.getElementById("submitNumbersBtn").style.display = "none";
 
+  document.getElementById("waitAnim").innerHTML =
+    "⏳ Waiting for opponent to submit…";
+
+  startCountdownIfReady();
+}
+
+/* CHECK IF COUNTDOWN SHOULD START */
+async function startCountdownIfReady() {
+  const { data: players } = await db
+    .from("players")
+    .select("*")
+    .eq("room", chosenRoom);
+
+  const count = players.length;
+  const readyCount = players.filter(p => p.ready).length;
+
+  // Only start if at least 2 players are in the room
+  if (count < 2) return;
+
+  // Start only once
   if (!countdownStarted) {
     countdownStarted = true;
     startCountdown();
   }
+
+  // If both players submitted → reveal immediately
+  if (readyCount === 2) {
+    clearInterval(countdownInterval);
+    revealResults();
+  }
 }
 
-/* FIXED COUNTDOWN */
+/* COUNTDOWN LOGIC */
 function startCountdown() {
   let time = 60;
   const wait = document.getElementById("waitAnim");
@@ -184,52 +199,57 @@ function startCountdown() {
     time--;
     wait.innerHTML = `⏳ Countdown: <b>${time}</b> seconds`;
 
+    // Check if both ready
     const { data: players } = await db
       .from("players")
       .select("ready")
       .eq("room", chosenRoom);
 
-    const submitted = players.filter(p => p.ready).length;
+    const readyCount = players.filter(p => p.ready).length;
 
-    if (submitted >= 2) {
+    if (readyCount === 2) {
       clearInterval(countdownInterval);
       revealResults();
+      return;
     }
 
     if (time <= 0) {
       clearInterval(countdownInterval);
       revealResults();
     }
+
   }, 1000);
 }
 
-/* REVEAL */
+/* SHOW RESULTS */
 async function revealResults() {
-  document.getElementById("waitAnim").innerHTML = "🎰 Drawing results...";
+  const wait = document.getElementById("waitAnim");
+  wait.innerHTML = "🎰 Drawing results...";
 
   const { data: players } = await db
     .from("players")
     .select("*")
     .eq("room", chosenRoom);
 
+  // Generate 20 numbers
   const winning = [];
   while (winning.length < 20) {
-    let n = Math.floor(Math.random() * 100) + 1;
+    let n = Math.floor(Math.random()*100)+1;
     if (!winning.includes(n)) winning.push(n);
   }
 
-  document.getElementById("waitAnim").innerHTML =
+  wait.innerHTML =
     `<b>Winning numbers:</b><br>${winning.join(", ")}`;
 
-  let hitsMap = players.map(p => ({
+  let hits = players.map(p => ({
     username: p.username,
     hits: p.picks.filter(n => winning.includes(n)).length
   }));
 
-  let maxHits = Math.max(...hitsMap.map(h => h.hits));
-  let winners = hitsMap.filter(h => h.hits === maxHits);
+  let max = Math.max(...hits.map(h => h.hits));
+  let winners = hits.filter(h => h.hits === max);
 
-  document.getElementById("waitAnim").innerHTML +=
+  wait.innerHTML +=
     `<br><br>🏆 Winner(s): <b>${winners.map(w => w.username).join(", ")}</b>`;
 }
 </script>
