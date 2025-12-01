@@ -1,37 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Zii Game 🎯</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<title>Keno Mini App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="styles.css?v=2">
+<!-- MAIN STYLE -->
+<style>
+    body {
+        margin: 0;
+        background: #0d0d0d;
+        font-family: Arial, sans-serif;
+        color: white;
+        text-align: center;
+        padding-bottom: 40px;
+    }
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    h1 {
+        margin-top: 20px;
+        font-size: 28px;
+    }
 
-  <!-- Telegram WebApp -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    /* NUMBER GRID */
+    #numberGrid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 6px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+    .num-btn {
+        padding: 10px;
+        background: #222;
+        border: none;
+        color: white;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: 0.2s;
+    }
+    .num-btn:hover {
+        background: #333;
+    }
+    .selected {
+        background: #00c2ff !important;
+        color: black;
+        font-weight: bold;
+    }
+
+    /* BUTTONS */
+    button.action-btn {
+        margin: 10px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #008cff;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    button.action-btn:hover {
+        background: #006fd1;
+    }
+
+    /* RESULTS AREA */
+    #results {
+        margin-top: 20px;
+        font-size: 18px;
+        padding: 15px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        width: 90%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* LEADERBOARD */
+    #leaderboardContainer {
+        margin-top: 30px;
+        padding: 20px;
+    }
+    .lb-item {
+        display: flex;
+        justify-content: space-between;
+        background: rgba(255,255,255,0.1);
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 5px;
+        font-size: 16px;
+    }
+</style>
+
 </head>
 
 <body>
 
-  <h1>Zii Game 🎯</h1>
-  <p>Pick 1–5 numbers, then press <b>Play</b></p>
+<h1>Keno Mini App</h1>
 
-  <div id="numberGrid"></div>
+<h3>Selected Numbers: <span id="selectedNumbers">None</span></h3>
 
-  <button id="playBtn">Play</button>
-  <button id="leaderboardBtn">Leaderboard</button>
+<!-- NUMBER GRID -->
+<div id="numberGrid"></div>
 
-  <div id="results">Results will appear here.</div>
+<!-- ACTION BUTTONS -->
+<button id="drawBtn" class="action-btn">🎲 Draw Numbers</button>
+<button id="rewardBtn" class="action-btn">🎁 Daily Reward</button>
+<button id="leaderboardBtn" class="action-btn">🏆 Load Leaderboard</button>
 
-  <h2>🏆 Leaderboard</h2>
-  <div id="leaderboardList"></div>
+<!-- RESULTS SECTION -->
+<div id="results">Results will appear here.</div>
 
-  <!-- JS -->
-  <script src="game.js?v=2"></script>
+<!-- LEADERBOARD SECTION -->
+<div id="leaderboardContainer">
+    <h2>🏆 Leaderboard</h2>
+    <div id="leaderboardList"></div>
+</div>
+
+<!-- GAME SCRIPT -->
+<script src="game.js"></script>
 
 </body>
 </html>
