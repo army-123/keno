@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zii Game – Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<link rel="stylesheet" href="styles.css" />
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+</head>
+
+<body class="login-body">
+
+<h1 class="title">Choose Entry Amount</h1>
+
+<div class="option" onclick="choose(10)">A — Play with 10</div>
+<div class="option" onclick="choose(20)">B — Play with 20</div>
+<div class="option" onclick="choose(50)">C — Play with 50</div>
+
+<script>
+// ------------------------
+// Supabase Connection
+// ------------------------
+const supabaseClient = supabase.createClient(
+  "https://vdhuexwgplylprgpddoq.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
+
+// ------------------------
+// Save selection + redirect
+// ------------------------
+function choose(amount) {
+  let username = "player_" + Math.floor(Math.random() * 999999);
+
+  localStorage.setItem("username", username);
+  localStorage.setItem("entryAmount", amount);
+
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>

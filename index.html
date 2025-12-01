@@ -2,262 +2,242 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Keno Mini App 🎯</title>
+  <title>Zii Game 🎯</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css" />
 
-  <!-- Telegram WebApp -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
       background: #0d0d0d;
       color: white;
       text-align: center;
+      font-family: Arial, sans-serif;
     }
-
     h1 {
       margin-top: 25px;
-      color: #4da6ff;
-      text-shadow: 0 0 10px #4da6ff;
-      font-size: 32px;
+      color: #ffdd55;
+      text-shadow: 0 0 12px #ffdd55;
     }
-
-    #selectedDisplay {
-      margin-top: 10px;
-      font-size: 20px;
-      font-weight: bold;
-      color: #ffdd88;
-    }
-
-    /* Number Grid */
-    #grid {
-      margin: 20px auto;
+    #numberGrid {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
       gap: 8px;
+      padding: 20px;
       max-width: 600px;
-      padding: 10px;
+      margin: auto;
     }
-
     .num {
       padding: 12px;
-      border-radius: 8px;
       background: #222;
-      color: white;
-      cursor: pointer;
-      border: 2px solid #444;
-      font-size: 16px;
-      transition: 0.2s;
-      user-select: none;
-    }
-
-    .num:hover {
-      background: #005eff;
-      border-color: #3399ff;
-    }
-
-    .selected {
-      background: #ffdd55;
-      color: black;
-      border-color: #ffee99;
-    }
-
-    .hit {
-      background: #33ff66 !important;
-      border-color: #88ff99 !important;
-      color: black !important;
-      box-shadow: 0 0 8px #33ff66;
-    }
-
-    button {
-      margin: 8px;
-      padding: 12px 20px;
-      background: #007bff;
-      border: none;
-      border-radius: 10px;
-      color: white;
-      font-size: 18px;
+      border: 2px solid #555;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
+      transition: 0.2s;
     }
-
-    button:hover {
-      background: #3399ff;
+    .num.selected {
+      background: #ffe066;
+      border-color: #fff2a8;
+      color: black;
     }
-
-    #resultsBox {
-      margin: 20px auto;
-      padding: 14px;
-      width: 90%;
-      background: #222;
+    .num.hit {
+      background: #00ff44;
+      border-color: #77ffb3;
+      color: black;
+      box-shadow: 0 0 10px #33ff77;
+    }
+    button {
+      padding: 12px 25px;
+      border: none;
+      background: #ffcc00;
+      color: black;
       border-radius: 10px;
+      cursor: pointer;
       font-size: 18px;
+      margin: 10px;
+      font-weight: bold;
     }
-
-    .lb-item {
-      background: #1c1c1c;
-      margin: 5px auto;
-      padding: 12px;
+    #results {
+      margin-top: 15px;
+      padding: 15px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
       width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 17px;
+    }
+    .lb-item {
+      background: rgba(255,255,255,0.07);
+      padding: 10px;
+      margin: 4px;
       border-radius: 8px;
       display: flex;
       justify-content: space-between;
-      color: #ddd;
+      font-size: 17px;
     }
   </style>
 
 </head>
+
 <body>
 
-  <h1>Keno Mini App</h1>
-  <div id="selectedDisplay">Selected Numbers: None</div>
+  <h1>Zii Game 🎯</h1>
+  <p>Select up to 5 numbers and press Play</p>
 
-  <div id="grid"></div>
+  <div id="numberGrid"></div>
 
-  <button id="drawBtn">🎲 Draw Numbers</button>
-  <button id="rewardBtn">🎁 Daily Reward</button>
-  <button id="lbBtn">🏆 Load Leaderboard</button>
+  <button id="playBtn">Play</button>
+  <button id="leaderboardBtn">Leaderboard</button>
 
-  <div id="resultsBox">Results will appear here.</div>
+  <div id="results">Results will appear here.</div>
 
   <h2>🏆 Leaderboard</h2>
-  <div id="leaderboard"></div>
+  <div id="leaderboardList"></div>
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    const player = tg.initDataUnsafe?.user?.username || "Guest";
+<script>
+// ------------------------------
+// Supabase Init
+// ------------------------------
+const supabaseClient = supabase.createClient(
+  "https://vdhuexwgplylprgpddoq.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
+);
 
-    const supabase = window.supabase.createClient(
-      "https://vdhuexwgplylprgpddoq.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaHVleHdncGx5bHByZ3BkZG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzI3MzgsImV4cCI6MjA4MDE0ODczOH0.oAtftTGawGDSTSpvzZQY_TCjn494tGQ2dn6nGwlzYfc"
-    );
+// ------------------------------
+// Load username + entry
+// ------------------------------
+const username = localStorage.getItem("username") || "Guest";
+const entryAmount = Number(localStorage.getItem("entryAmount") || 10);
 
-    let selected = [];
+// ------------------------------
+// Build Grid
+// ------------------------------
+let selected = [];
+const maxPick = 5;
 
-    const grid = document.getElementById("grid");
+const grid = document.getElementById("numberGrid");
+for (let i = 1; i <= 100; i++) {
+  const div = document.createElement("div");
+  div.className = "num";
+  div.innerText = i;
 
-    // Generate numbers 1–100
-    for (let i = 1; i <= 100; i++) {
-      const div = document.createElement("div");
-      div.className = "num";
-      div.innerText = i;
-
-      div.onclick = () => {
-        if (selected.includes(i)) {
-          selected = selected.filter(n => n !== i);
-          div.classList.remove("selected");
-        } else {
-          if (selected.length >= 5) return;
-          selected.push(i);
-          div.classList.add("selected");
-        }
-        updateSelectedDisplay();
-      };
-
-      grid.appendChild(div);
+  div.onclick = () => {
+    if (selected.includes(i)) {
+      selected = selected.filter(n => n !== i);
+      div.classList.remove("selected");
+    } else {
+      if (selected.length >= maxPick) return;
+      selected.push(i);
+      div.classList.add("selected");
     }
+  };
 
-    function updateSelectedDisplay() {
-      document.getElementById("selectedDisplay").textContent =
-        selected.length > 0
-          ? "Selected Numbers: " + selected.join(", ")
-          : "Selected Numbers: None";
-    }
+  grid.appendChild(div);
+}
 
-    function confetti() {
-      for (let i = 0; i < 20; i++) {
-        const c = document.createElement("div");
-        c.style.position = "fixed";
-        c.style.top = "-10px";
-        c.style.left = Math.random() * 100 + "vw";
-        c.style.width = "10px";
-        c.style.height = "10px";
-        c.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        c.style.animation = `fall ${1 + Math.random()}s linear`;
-        document.body.appendChild(c);
-        setTimeout(() => c.remove(), 2000);
-      }
-    }
+// ------------------------------
+// Confetti effect
+// ------------------------------
+function confettiBurst() {
+  for (let i = 0; i < 20; i++) {
+    const e = document.createElement("div");
+    e.style.position = "fixed";
+    e.style.left = Math.random() * 100 + "vw";
+    e.style.top = "-20px";
+    e.style.width = "10px";
+    e.style.height = "10px";
+    e.style.background = `hsl(${Math.random()*360},100%,50%)`;
+    e.style.borderRadius = "50%";
+    e.style.animation = "fall 1.5s linear forwards";
+    document.body.appendChild(e);
+    setTimeout(() => e.remove(), 2000);
+  }
+}
 
-    document.getElementById("drawBtn").onclick = async () => {
-      if (selected.length === 0) {
-        alert("Pick numbers first!");
-        return;
-      }
+// ------------------------------
+// Play Button
+// ------------------------------
+document.getElementById("playBtn").onclick = async () => {
+  if (selected.length === 0) {
+    alert("Pick at least 1 number!");
+    return;
+  }
 
-      // Remove previous hits
-      document.querySelectorAll(".num").forEach(el => el.classList.remove("hit"));
+  // Draw 20 numbers
+  const drawn = [];
+  while (drawn.length < 20) {
+    let n = Math.floor(Math.random() * 100) + 1;
+    if (!drawn.includes(n)) drawn.push(n);
+  }
 
-      const drawn = [];
-      while (drawn.length < 20) {
-        let n = Math.floor(Math.random() * 100) + 1;
-        if (!drawn.includes(n)) drawn.push(n);
-      }
+  // Find hits
+  const hits = selected.filter(n => drawn.includes(n));
+  const points = hits.length * entryAmount;
 
-      const hits = selected.filter(n => drawn.includes(n));
+  // Highlight hits
+  document.querySelectorAll(".num").forEach(x => x.classList.remove("hit"));
+  hits.forEach(n => {
+    const box = [...document.querySelectorAll(".num")]
+      .find(el => Number(el.innerText) === n);
+    if (box) box.classList.add("hit");
+  });
 
-      hits.forEach(hit => {
-        const box = [...document.querySelectorAll(".num")].find(
-          n => Number(n.innerText) === hit
-        );
-        if (box) box.classList.add("hit");
-      });
+  if (hits.length > 0) confettiBurst();
 
-      const points = hits.length * 10;
+  // Show results
+  document.getElementById("results").innerHTML = `
+    🎯 Drawn: ${drawn.join(", ")}<br>
+    ✔ Hits: <b>${hits.length}</b><br>
+    ⭐ Points Earned: <b>${points}</b>
+  `;
 
-      if (points > 0) confetti();
+  // Save to leaderboard
+  await supabaseClient.from("leaderboard").insert([
+    { username, score: points }
+  ]);
+};
 
-      document.getElementById("resultsBox").innerHTML = `
-        🎯 Drawn Numbers:<br>${drawn.join(", ")}<br><br>
-        ✔ Hits: <b>${hits.length}</b><br>
-        ⭐ Points Earned: <b>${points}</b>
-      `;
+// ------------------------------
+// Leaderboard button
+// ------------------------------
+document.getElementById("leaderboardBtn").onclick = async () => {
+  const list = document.getElementById("leaderboardList");
 
-      await supabase.from("leaderboard").insert([
-        { username: player, score: points }
-      ]);
-    };
+  const { data } = await supabaseClient
+    .from("leaderboard")
+    .select("*")
+    .order("score", { ascending: false })
+    .limit(20);
 
-    document.getElementById("lbBtn").onclick = async () => {
-      const lb = document.getElementById("leaderboard");
-      const { data } = await supabase
-        .from("leaderboard")
-        .select("*")
-        .order("score", { ascending: false })
-        .limit(20);
+  list.innerHTML = "";
 
-      lb.innerHTML = "";
-      data.forEach((p, i) => {
-        const div = document.createElement("div");
-        div.className = "lb-item";
-        div.innerHTML = `
-          <span>#${i + 1}</span>
-          <span>${p.username}</span>
-          <span>${p.score}</span>
-        `;
-        lb.appendChild(div);
-      });
-    };
+  if (!data || data.length === 0) {
+    list.innerHTML = "<i>No scores yet.</i>";
+    return;
+  }
 
-    document.getElementById("rewardBtn").onclick = () => {
-      alert("Daily Reward Coming Soon 🎁");
-    };
-  </script>
+  data.forEach((p, i) => {
+    const medal = i === 0 ? "🥇" :
+                  i === 1 ? "🥈" :
+                  i === 2 ? "🥉" : "";
 
-  <style>
-    @keyframes fall {
-      to {
-        transform: translateY(100vh) rotate(720deg);
-        opacity: 0;
-      }
-    }
-  </style>
+    const div = document.createElement("div");
+    div.className = "lb-item";
+    div.innerHTML = `
+      <span>${medal} #${i+1}</span>
+      <span>${p.username}</span>
+      <span>${p.score}</span>
+    `;
+    list.appendChild(div);
+  });
+};
+
+</script>
 
 </body>
 </html>
